@@ -1,0 +1,14 @@
+{% extends "plugin.html" %}
+
+{% block content %}
+<div id="units-container" data-units="{{ units }}"></div>
+
+<div class="solar-dashboard">
+  <!-- Current Date -->
+  <div class="header">
+    <div class="title">{{ title }}</div>
+    <div class="current-date">{{ current_date }}</div>
+  </div>
+</div>
+
+{% endblock %}
