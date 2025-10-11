@@ -5,7 +5,7 @@
   padding: 0;
 }
 
-.weather-dashboard {
+.solar-dashboard {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -25,17 +25,7 @@
   container-type: size;
 }
 
-.last-refresh {
-  position: absolute;
-  top: 0.5dvh;
-  right: 0.5dvw;
-  font-size: min(2dvh, 2vw);
-  text-align: right;
-  font-weight: bold;
-  padding: 0.3dvh 0.5dvw;
-}
-
-.weather-dashboard {
+.solar-dashboard {
   position: relative;
 }
 
