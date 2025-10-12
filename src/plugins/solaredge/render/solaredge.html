@@ -2,29 +2,23 @@
 
 {% block content %}
 
-<div class="solar-dashboard">
-  <div class="header">
-    <div class="title">{{ title }}</div>
-    <div class="current-date">{{ current_date }}</div>
-  </div>
-  <div class="data-container">
-    <div class="battery-box">
-        <p class="entry-label">Batterie</p>
-        <img class= "battery-icon" src= "{{ battery_png }}" alt="{{ battery_level }}">  
-        <p class="entry-label">{{ battery_level }}</p>
-    </div>  
-    <div class="battery-box">
-        <p class="entry-label">Ertrag</p>
-        <p class="power-values">{{ production_today }}</p>
-        <p class="entry-label">kWh</p>
-    </div>  
-    <div class="battery-box">
-        <p class="entry-label">Verbrauch</p>
-        <p class="power-values">{{ consumption_today }}</p>
-        <p class="entry-label">kWh</p>
-    </div>  
-
-  </div>
+<div class="grid-container">
+    <div class="box box-01">
+      <div class="box-line">
+        <img class="box-icon" src="{{battery_png}}" alt="{{ battery_level }}">
+        <div class="box-description">9,7 kWh</div>
+      </div>
+      <div class="box-value">55 %</div>
+    </div>
+    <div class="box box-02">
+      <div class="box-line">
+        <img class="box-icon" src="{{battery_png}}" alt="{{ battery_level }}">
+        <div class="box-description">9,7 kWh</div>
+      </div>
+      <div class="box-value">55 %</div>
+    </div>
+    <div class="box box-03">333333333333333333333333333333</div>
+    <div class="box box-04">444444444444444444444444444444</div>
 </div>
 
 {% endblock %}

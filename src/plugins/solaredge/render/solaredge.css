@@ -1,78 +1,77 @@
-/* Basic Reset */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+.grid-container {
+  font-family: "Jost";
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Fractions */
+  grid-template-rows: 1fr 1fr;
+  grid-auto-flow: row;
+  background-color: lightgray;
+  padding-top: 2%;
+  padding-bottom: 2%;
+  padding-left: 2%;
+  padding-right: 2%;
+  width: 100%;  
+  height: 100%;  
+  gap: 2%; /*oder row-gap / column-gap*/
+  grid-template-areas: 
+    "eins zwei"
+    "drei vier";
 }
 
-.solar-dashboard {
+.box {  
+  border-radius: 5%;
+  background-color: white;
+  color: black;
+}
+
+.box-01 {
+  grid-area: eins;    
+  width: 100%;  
+  height: 100%;  
+}
+
+.box-02 {
+  grid-area: zwei;
+  width: 100%;  
+  height: 100%;  
+}
+
+.box-03 {
+  grid-area: drei;
+  width: 100%;  
+  height: 100%;   
+}
+
+.box-04 {
+  grid-area: vier;
+  width: 100%;  
+  height: 100%;    
+}
+
+.box-line {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1dvh;
-  width: 100%;
+  
+}
+
+.box-icon {
+  padding-left: 5%;
+  padding-top: 5%;
+  width: 33%;
   height: 100%;
-  font-family: "Jost"
 }
 
-.header {
-  height: 15dvh;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: end;
-  container-type: size;
-}
-
-.solar-dashboard {
-  position: relative;
-}
-
-.title {
-  font-size: min(50cqh, 8cqi);
+.box-description {
+  font-size: min(10cqh, 10cqi);
+  width: 77%;  
+  height: 100%;
   text-align: center;
-  align-content: end;
-  width: 100%;
   font-weight: bold;
-  line-height: 102%;
+}
+
+.box-value {
+  font-size: min(15cqh, 15cqi);
+  width: 100%;  
   height: 100%;
-}
-
-.current-date {
-  font-size: min(30cqh, 6cqi);
-  text-align: center;
-  align-content: end;
-  width: 100%;
-  line-height: 105%;
-}
-
-.data-container {
-  display: flex;
-}
-
-.battery-box {
-  flex: 20%;
-  padding-right: 50px;
-}
-.entry-label {
-  margin-bottom: 0;
-  font-size: 5cqmin;
-  text-align: center;
-  padding-bottom: 0px;  
-}
-
-.battery-icon {
-  padding-top: 3px;
-  margin-top: 0px;
-  width: 100%;
-  /* align-content: top; */
-}
-
-.power-values {
-  padding-top: 0px;
-  margin-top: 0px;
-  font-size: 10cqmin;
-  text-align: center;
-  width: 100%;
+  text-align: right;
+  align-content: center;
+  font-weight: bold;
 }
