@@ -47,9 +47,16 @@ class Solaredge(BasePlugin):
 
     def parse_solar_data(self):
         cdt = datetime.now()
+        batteryLevel = 50
+        consumptionToday = 4.5
+        productionToday = 6.82
 
         data = {            
-            "current_date": cdt.strftime("%m/%d/%Y, %H:%M:%S")
+            "current_date": cdt.strftime("%m/%d/%Y, %H:%M:%S"),            
+            "battery_level": str(batteryLevel) + " %",
+            "battery_png": self.get_plugin_dir(f'icons/{'battery-50'}.png'),
+            "consumption_today": str(consumptionToday),
+            "production_today": str(productionToday)
         }
 
         return data

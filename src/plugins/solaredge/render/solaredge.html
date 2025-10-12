@@ -1,13 +1,29 @@
 {% extends "plugin.html" %}
 
 {% block content %}
-<div id="units-container" data-units="{{ units }}"></div>
 
 <div class="solar-dashboard">
-  <!-- Current Date -->
   <div class="header">
     <div class="title">{{ title }}</div>
     <div class="current-date">{{ current_date }}</div>
+  </div>
+  <div class="data-container">
+    <div class="battery-box">
+        <p class="entry-label">Batterie</p>
+        <img class= "battery-icon" src= "{{ battery_png }}" alt="{{ battery_level }}">  
+        <p class="entry-label">{{ battery_level }}</p>
+    </div>  
+    <div class="battery-box">
+        <p class="entry-label">Ertrag</p>
+        <p class="power-values">{{ production_today }}</p>
+        <p class="entry-label">kWh</p>
+    </div>  
+    <div class="battery-box">
+        <p class="entry-label">Verbrauch</p>
+        <p class="power-values">{{ consumption_today }}</p>
+        <p class="entry-label">kWh</p>
+    </div>  
+
   </div>
 </div>
 
