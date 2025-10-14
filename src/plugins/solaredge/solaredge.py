@@ -50,13 +50,24 @@ class Solaredge(BasePlugin):
         batteryLevel = 50
         consumptionToday = 4.5
         productionToday = 6.82
+        currentPower = 1256
 
         data = {            
-            "current_date": cdt.strftime("%m/%d/%Y, %H:%M:%S"),            
-            "battery_level": str(batteryLevel) + " %",
             "battery_png": self.get_plugin_dir(f'icons/{'battery-50'}.png'),
+            "solaredge_png": self.get_plugin_dir(f'icons/solaredge.png'),
+            "solar_house_png": self.get_plugin_dir(f'icons/solarhaus.png'),
+            "power_plant_png": self.get_plugin_dir(f'icons/strommast.png'),
+            "battery_level": str(batteryLevel) + " %",
+            "battery_capacity": "10 kWh",
             "consumption_today": str(consumptionToday),
-            "production_today": str(productionToday)
+            "production_today": str(productionToday),
+            "current_power": str(currentPower),
+            "current_date": {"week_day": "Dienstag,",
+                             "day": "14.",
+                             "month": "Oktober",
+                             "time" : "12:00",
+                             "am_pm" : "UHR"
+                            }
         }
 
         return data
