@@ -3,22 +3,40 @@
 {% block content %}
 
 <div class="grid-container">
-    <div class="box box-01">
-      <div class="box-line">
-        <img class="box-icon" src="{{battery_png}}" alt="{{ battery_level }}">
-        <div class="box-description">9,7 kWh</div>
+    <div class="box battery-tile">
+      <div class="tile-row">
+        <img class="tile-icon" src="{{battery_png}}" alt="{{ battery_level }}">
+        <div class="tile-description">10 kWh</div>
       </div>
-      <div class="box-value">55 %</div>
+      <div class="tile-value1">+0,3 kWh</div>
+      <div class="tile-value2">55 %</div>
     </div>
-    <div class="box box-02">
-      <div class="box-line">
-        <img class="box-icon" src="{{battery_png}}" alt="{{ battery_level }}">
-        <div class="box-description">9,7 kWh</div>
+    <div class="box solar-tile">
+      <div class="tile-row">
+        <img class="tile-icon" src="{{solar_house_png}}" alt="SOLAR">
+        <div class="tile-description">10 kWp</div>
       </div>
-      <div class="box-value">55 %</div>
+      <div class="tile-value1">3 kw</div>
+      <div class="tile-value2">4 kw</div>
     </div>
-    <div class="box box-03">333333333333333333333333333333</div>
-    <div class="box box-04">444444444444444444444444444444</div>
-</div>
+    <div class="box box-03">03</div>
+    <div class="box box-04">04</div>
+    <div class="box icon-tile">
+      <img class="title-icon" src="{{solaredge_png}}" alt="Solaredge">
+    </div>
+    <div class="box box-06">06</div>
+    <div class="box box-07">07</div>
+    <div class="box box-08">08</div>
+    <div class="box box-09">09</div>
+    <div class="box date-tile">
+      <p>{{current_date.week_day}}</p>
+      <p>{{current_date.day}}</p>
+      <p>{{current_date.month}}</p>
+    </div>
+    <div class="box time-tile">
+      <p >{{current_date.time}} {{current_date.am_pm}}<p>
+    </div>
+
+  </div>
 
 {% endblock %}

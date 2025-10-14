@@ -1,36 +1,44 @@
 .grid-container {
   font-family: "Jost";
   display: grid;
-  grid-template-columns: 1fr 1fr; /* Fractions */
-  grid-template-rows: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr; /* Fractions */
+  grid-template-rows: 1fr 1fr 1fr 1fr 1fr;
   grid-auto-flow: row;
   background-color: lightgray;
-  padding-top: 2%;
-  padding-bottom: 2%;
-  padding-left: 2%;
-  padding-right: 2%;
+  padding-top: 1%;
+  padding-bottom: 1%;
+  padding-left: 1%;
+  padding-right: 1%;
   width: 100%;  
   height: 100%;  
-  gap: 2%; /*oder row-gap / column-gap*/
+  row-gap: 2%; /*oder row-gap / column-gap*/
+  column-gap: 1%;
   grid-template-areas: 
-    "eins zwei"
-    "drei vier";
+    "date time icon icon icon"
+    "bat bat solar solar sechs"
+    "bat bat solar solar sieben"
+    "drei drei vier vier acht"
+    "drei drei vier vier neun";    
 }
 
 .box {  
   border-radius: 5%;
   background-color: white;
   color: black;
+  padding-bottom: 0%;
 }
 
-.box-01 {
-  grid-area: eins;    
+.battery-tile {
+  grid-area: bat;    
   width: 100%;  
   height: 100%;  
+  font-size: 100%;
 }
 
-.box-02 {
-  grid-area: zwei;
+.solar-tile {
+  margin: 0;
+  padding: 0;
+  grid-area: solar;
   width: 100%;  
   height: 100%;  
 }
@@ -47,31 +55,106 @@
   height: 100%;    
 }
 
-.box-line {
-  display: flex;
-  
+.icon-tile {
+  grid-area: icon;
+  width: 100%;  
+  height: 100%;    
 }
 
-.box-icon {
-  padding-left: 5%;
-  padding-top: 5%;
+.box-06 {
+  grid-area: sechs;
+  width: 100%;  
+  height: 100%;    
+}
+
+.box-07 {
+  grid-area: sieben;
+  width: 100%;  
+  height: 100%;    
+}
+
+.box-08 {
+  grid-area: acht;
+  width: 100%;  
+  height: 100%;    
+}
+
+.box-09 {
+  grid-area: neun;
+  width: 100%;  
+  height: 100%;    
+}
+
+.date-tile {
+  grid-area: date;
+  padding-top: .4%;
+  font-size: min(4cqh, 4cqi);
+  font-weight: bold;
+  text-align: center;
+  width: 100%;  
+  height: 100%;    
+}
+
+.time-tile {
+  display: flex;
+  grid-area: time;
+  padding: 0;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  font-size: min(5cqh, 5cqi);
+  font-weight: bold;  
+  width: 100%;  
+  height: 100%;    
+}
+
+.tile-row {
+  padding-left: 1%;
+  padding-top: 1%;
+  display: flex;
+  width: 100%;  
+  height: 50%;
+}
+
+.tile-icon {
   width: 33%;
   height: 100%;
 }
 
-.box-description {
+.tile-description {
   font-size: min(10cqh, 10cqi);
   width: 77%;  
   height: 100%;
   text-align: center;
-  font-weight: bold;
+  /*font-weight: bold; */
 }
 
-.box-value {
-  font-size: min(15cqh, 15cqi);
-  width: 100%;  
+.title-icon {  
+  padding: 1%;
+  width: 100%;
   height: 100%;
-  text-align: right;
-  align-content: center;
+}
+
+.tile-value1 {
+  font-size: min(6cqh, 6cqi);
+  color: gray;
+  line-height: 50%;
+  width: 100%;  
+  height: 33%;
+  margin: 0;
+  text-align: end;
+  padding-right: 1%;
+  padding-bottom: 0%;
+}
+.tile-value2 {
+  font-size: min(10cqh, 10cqi);
+  line-height: 10%;
+  width: 100%;  
+  height: 33%;
+  margin: 0;
+  text-align: end;
   font-weight: bold;
+  padding-right: 1%;
+  padding-top: 0%;
+  padding-bottom: 0%;
 }
