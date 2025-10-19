@@ -19,8 +19,8 @@
         "active_playlist": "Default"
     },
     "refresh_info": {
-        "refresh_time": "2025-10-12T17:52:07.211139+02:00",
-        "image_hash": "0ece3977acf7371e5a226806f1b814f094cb32d63fe9063be2ed48f459e65e92",
+        "refresh_time": "2025-10-14T16:42:31.148789+02:00",
+        "image_hash": "8012aa4cbc6c794658b9f7c6a2754fcfdcbe73720cc187cf1fb5904d731851e3",
         "refresh_type": "Manual Update",
         "plugin_id": "solaredge"
     },
