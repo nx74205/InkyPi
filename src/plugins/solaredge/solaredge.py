@@ -59,7 +59,7 @@ class Solaredge(BasePlugin):
             "power_plant_png": self.get_plugin_dir(f'icons/strommast.png'),
             "battery_level": str(batteryLevel) + " %",
             "battery_capacity": "10 kWh",
-            "consumption_today": str(consumptionToday),
+            "consumption_today": str(consumptionToday) + " kWh",
             "production_today": str(productionToday),
             "current_power": str(currentPower),
             "current_date": {"week_day": "Dienstag,",

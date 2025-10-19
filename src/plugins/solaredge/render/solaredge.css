@@ -17,8 +17,8 @@
     "date time icon icon icon"
     "bat bat solar solar sechs"
     "bat bat solar solar sieben"
-    "drei drei vier vier acht"
-    "drei drei vier vier neun";    
+    "drei drei imp imp acht"
+    "drei drei imp imp neun";    
 }
 
 .box {  
@@ -49,8 +49,8 @@
   height: 100%;   
 }
 
-.box-04 {
-  grid-area: vier;
+.import-tile {
+  grid-area: imp;
   width: 100%;  
   height: 100%;    
 }
