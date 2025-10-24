@@ -57,6 +57,7 @@ class Solaredge(BasePlugin):
             "solaredge_png": self.get_plugin_dir(f'icons/solaredge.png'),
             "solar_house_png": self.get_plugin_dir(f'icons/solarhaus.png'),
             "power_plant_png": self.get_plugin_dir(f'icons/strommast.png'),
+            "euro_png": self.get_plugin_dir(f'icons/euro.png'),
             "battery_level": str(batteryLevel) + " %",
             "battery_capacity": "10 kWh",
             "consumption_today": str(consumptionToday) + " kWh",
