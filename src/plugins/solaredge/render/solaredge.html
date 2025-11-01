@@ -5,21 +5,23 @@
 <div class="grid-container">
     <div class="box battery-tile">
       <div class="tile-row">
-        <img class="tile-icon" src="{{battery_png}}" alt="{{ battery_level }}">
-        <div class="tile-description">10 kWh</div>
+        <img class="tile-icon" src="{{battery.icon}}" alt="{{battery.level}}">
+        <div class="tile-description">{{battery.capacity}}</div>
       </div>
-      <div class="tile-value1">+0,3 kWh</div>
-      <div class="tile-value2">55 %</div>
+      <div class="tile-value1">{{battery.current_power}}</div>
+      <div class="tile-value2">{{battery.level}}</div>
     </div>
     <div class="box solar-tile">
       <div class="tile-row">
-        <img class="tile-icon" src="{{solar_house_png}}" alt="SOLAR">
-        <div class="tile-description">10 kWp</div>
+        <img class="tile-icon" src="{{solar.icon}}" alt="SOLAR">
+        <div class="tile-description">{{solar.max_power}}</div>
       </div>
-      <div class="tile-value1">3 kw</div>
-      <div class="tile-value2">4 kw</div>
+      <div class="tile-value1">{{solar.current_power}}</div>
+      <div class="tile-value2">{{solar.production_today}}</div>
     </div>
-    <div class="box box-03">03</div>
+    <div class="box chart">
+      <canvas id="solarChart"></canvas>
+    </div>
     <div class="box import-tile">
       <div class="tile-row">
         <img class="tile-icon" src="{{power_plant_png}}" alt="Import">
@@ -36,14 +38,14 @@
         <img class="tile-icon" src="{{euro_png}}" alt="Solaredge">
         <div class="small-tile-description">11:00 Uhr</div>        
       </div>      
-      <div class="small-tile-value">-0,01 EUR</div>
+      <div class="small-tile-value">-0,01 €</div>
     </div>
     <div class="box next-dap">
       <div class="tile-row">
         <img class="tile-icon" src="{{euro_png}}" alt="Solaredge">
         <div class="small-tile-description">11:15 Uhr</div>        
       </div>      
-      <div class="small-tile-value">0,05 EUR</div>
+      <div class="small-tile-value">0,05 €</div>
     </div>
     <div class="box box-08">08</div>
     <div class="box box-09">09</div>
@@ -53,9 +55,46 @@
       <p>{{current_date.month}}</p>
     </div>
     <div class="box time-tile">
-      <p >{{current_date.time}} {{current_date.am_pm}}<p>
+      {{current_date.time}} {{current_date.am_pm}}
     </div>
 
   </div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+      const canvas = document.getElementById('solarChart');
+      const ctx = canvas.getContext('2d');
+
+      const canvasPaddingPercent = 5; // 5% padding
+      const canvasWidth = canvas.width * (1 - canvasPaddingPercent / 100 * 2);
+      const canvasHeight = canvas.height * (1 - canvasPaddingPercent / 100 * 2);
+      const offsetX = canvas.width * (canvasPaddingPercent / 100);
+      const offsetY = canvas.height * (canvasPaddingPercent / 100);
+
+      //ctx.fillText(canvasWidth, 10, 10);
+      //ctx.fillText(canvasHeight, 10, 20);
+      
+      const totalBars = {{ pv_production_values_shown }};
+      var barWidth = canvasWidth / totalBars -2;
+      var height = canvasHeight;
+
+      const pvData = [{% for value in pv_production_data %}{{ value }}{% if not loop.last %}, {% endif %}{% endfor %}];
+      const maxPvValue = {{ pv_production_max_value }};
+      const startIndex = (24 - totalBars)/2;
+
+      ctx.fillStyle = 'red';    
+      pvData.forEach((value, index) => {
+        if (index >= startIndex && index < startIndex + totalBars) {
+            const barHeight = (value / maxPvValue) * canvasHeight;
+            const x = (index - startIndex) * (barWidth + 2) + offsetX;
+            const y = canvasHeight - (barHeight + offsetY);
+          
+            ctx.fillRect(x, y, barWidth, barHeight);
+        }
+      });
+      
+      
+  });
+</script>  
 
 {% endblock %}
