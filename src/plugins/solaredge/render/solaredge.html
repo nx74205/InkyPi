@@ -24,38 +24,46 @@
     </div>
     <div class="box import-tile">
       <div class="tile-row">
-        <img class="tile-icon" src="{{power_plant_png}}" alt="Import">
+        <img class="tile-icon" src="{{power_plant.icon}}" alt="Import">
         <div class="tile-description"></div>
       </div>
       <div class="tile-value1"></div>
-      <div class="tile-value2">{{consumption_today}}</div>
+      <div class="tile-value2">{{power_plant.consumption_today}}</div>
     </div>
     <div class="box icon-tile">
-      <img class="title-icon" src="{{solaredge_png}}" alt="Solaredge">
+      <img class="title-icon" src="{{solaredge_png}}" alt="{{Solaredge}}">
     </div>
     <div class="box current-dap">
       <div class="tile-row">
-        <img class="tile-icon" src="{{euro_png}}" alt="Solaredge">
-        <div class="small-tile-description">11:00 Uhr</div>        
+        <img class="tile-icon" src="{{dap.icon}}" alt="{{dap.currency_symbol}}">
+        <div class="small-tile-description">{{dap.current_time}}</div>        
       </div>      
-      <div class="small-tile-value">-0,01 €</div>
+      <div class="small-tile-value">{{dap.current_price}}</div>
     </div>
     <div class="box next-dap">
       <div class="tile-row">
-        <img class="tile-icon" src="{{euro_png}}" alt="Solaredge">
-        <div class="small-tile-description">11:15 Uhr</div>        
+        <img class="tile-icon" src="{{dap.icon}}" alt="{{dap.currency_symbol}}">
+        <div class="small-tile-description">{{dap.next_time}}</div>        
       </div>      
-      <div class="small-tile-value">0,05 €</div>
+      <div class="small-tile-value">{{dap.next_price}}</div>
     </div>
-    <div class="box box-08">08</div>
-    <div class="box box-09">09</div>
+    <div class="box renewable-tile">
+      <div class="tile-row">
+        <img class="tile-icon" src="{{renewable.icon}}" alt="REN">
+        <div class="small-tile-description">{{renewable.description}}</div>
+      </div>      
+      <div class="small-tile-value">{{renewable.percentage}}</div>
+    </div>
+    <div class="box free-tile">
+      <img class="free-tile-icon" src="{{star_png}}" alt="REN">
+    </div>
     <div class="box date-tile">
-      <p>{{current_date.week_day}}</p>
       <p>{{current_date.day}}</p>
       <p>{{current_date.month}}</p>
     </div>
     <div class="box time-tile">
-      {{current_date.time}} {{current_date.am_pm}}
+      <p>{{current_date.time}}</p>
+      <p>{{current_date.am_pm}}</p>
     </div>
 
   </div>
@@ -74,12 +82,12 @@
       //ctx.fillText(canvasWidth, 10, 10);
       //ctx.fillText(canvasHeight, 10, 20);
       
-      const totalBars = {{ pv_production_values_shown }};
+      const totalBars = {{ chart.values_shown }};
       var barWidth = canvasWidth / totalBars -2;
       var height = canvasHeight;
 
-      const pvData = [{% for value in pv_production_data %}{{ value }}{% if not loop.last %}, {% endif %}{% endfor %}];
-      const maxPvValue = {{ pv_production_max_value }};
+      const pvData = [{% for value in chart.data %}{{ value }}{% if not loop.last %}, {% endif %}{% endfor %}];
+      const maxPvValue = {{ chart.max_value }};
       const startIndex = (24 - totalBars)/2;
 
       ctx.fillStyle = 'red';    
