@@ -33,27 +33,45 @@
     <div class="box icon-tile">
       <img class="title-icon" src="{{solaredge_png}}" alt="{{Solaredge}}">
     </div>
-    <div class="box current-dap">
-      <div class="tile-row">
-        <img class="tile-icon" src="{{dap.icon}}" alt="{{dap.currency_symbol}}">
-        <div class="small-tile-description">{{dap.current_time}}</div>        
-      </div>      
-      <div class="small-tile-value">{{dap.current_price}}</div>
-    </div>
-    <div class="box next-dap">
-      <div class="tile-row">
-        <img class="tile-icon" src="{{dap.icon}}" alt="{{dap.currency_symbol}}">
-        <div class="small-tile-description">{{dap.next_time}}</div>        
-      </div>      
-      <div class="small-tile-value">{{dap.next_price}}</div>
-    </div>
-    <div class="box renewable-tile">
-      <div class="tile-row">
-        <img class="tile-icon" src="{{renewable.icon}}" alt="REN">
-        <div class="small-tile-description">{{renewable.description}}</div>
-      </div>      
-      <div class="small-tile-value">{{renewable.percentage}}</div>
-    </div>
+    {% if dap.show %}
+      <div class="box current-dap">
+        <div class="tile-row">
+          <img class="tile-icon" src="{{dap.icon}}" alt="{{dap.currency_symbol}}">
+          <div class="small-tile-description">{{dap.current_time}}</div>        
+        </div>      
+        <div class="small-tile-value">{{dap.current_price}}</div>
+      </div>
+      <div class="box next-dap">
+        <div class="tile-row">
+          <img class="tile-icon" src="{{dap.icon}}" alt="{{dap.currency_symbol}}">
+          <div class="small-tile-description">{{dap.next_time}}</div>        
+        </div>      
+        <div class="small-tile-value">{{dap.next_price}}</div>
+      </div>
+      {% if renewable.show %}
+        <div class="box renewable-tile">
+          <div class="tile-row">
+            <img class="tile-icon" src="{{renewable.icon}}" alt="REN">
+            <div class="small-tile-description">{{renewable.description}}</div>
+          </div>      
+          <div class="small-tile-value">{{renewable.percentage}}</div>
+        </div>
+      {% else %}
+        <div class="box free-tile" grid-area="ren">
+          <img class="free-tile-icon" src="{{star_png}}" alt="REN">
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="box free-tile">
+        <img class="free-tile-icon" src="{{star_png}}" alt="REN">
+      </div>
+      <div class="box free-tile">
+        <img class="free-tile-icon" src="{{star_png}}" alt="REN">
+      </div>
+      <div class="box free-tile">
+        <img class="free-tile-icon" src="{{star_png}}" alt="REN">
+      </div>
+      {% endif %}
     <div class="box free-tile">
       <img class="free-tile-icon" src="{{star_png}}" alt="REN">
     </div>
