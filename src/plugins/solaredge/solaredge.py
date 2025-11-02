@@ -25,7 +25,7 @@ class Solaredge(BasePlugin):
     def generate_image(self, settings, device_config):
 
         try:
-            template_params = self.parse_solar_data()
+            template_params = self.parse_solar_data(settings)
             template_params['title'] = "Solarertrag"
             template_params["plugin_settings"] = settings
 
@@ -46,7 +46,7 @@ class Solaredge(BasePlugin):
             
         return image
 
-    def parse_solar_data(self):
+    def parse_solar_data(self, settings):
 
         descimalSign = ","
         locale.setlocale(locale.LC_ALL, 'de_DE.utf8')
@@ -96,6 +96,7 @@ class Solaredge(BasePlugin):
                 "current_power": replace_decimals(str(round(solarCurrentPower, 0))) + " W"
             },
             "dap": {    # DAP = Stock "Day Ahead Price" per kWh
+                "show": settings.get('showPriceData') == 'true',
                 "icon": self.get_plugin_dir(f'icons/euro.png'),
                 "currency_symbol": currencySymbol,
                 "current_time": "11:00",
@@ -119,6 +120,7 @@ class Solaredge(BasePlugin):
                 "data": chartData
             },
             "renewable": {
+                "show": settings.get('dapCountry') == 'DE-LU',
                 "icon": self.get_plugin_dir(f'icons/leaf.png'),
                 "description": renewableDescription,
                 "percentage": str(round(renewableEnergyPercentage, 0)) + " %"

@@ -81,7 +81,7 @@
 }
 
 .free-tile {
-  grid-area: free;
+  /* grid-area: free; */
   align-content: center;
   vertical-align: middle;
   width: 100%;  
