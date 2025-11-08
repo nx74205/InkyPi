@@ -1,13 +1,11 @@
 from plugins.base_plugin.base_plugin import BasePlugin
+from plugins.solaredge.solar_base import SolarBase
 from PIL import Image
 import locale
-import os
-import requests
 import logging
 from datetime import datetime, timezone
 import pytz
 from io import BytesIO
-import math
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +46,17 @@ class Solaredge(BasePlugin):
 
     def parse_solar_data(self, settings):
 
-        descimalSign = ","
-        locale.setlocale(locale.LC_ALL, 'de_DE.utf8')
-        amPm = "Uhr"
-        currencySymbol = "€"
+        country = settings.get('country', 'en')
+        if country == "de":
+            descimalSign = ","
+            locale.setlocale(locale.LC_ALL, 'de_DE.utf8')
+            amPm = "Uhr"
+            currencySymbol = "€"
+        else:
+            descimalSign = "."
+            locale.setlocale(locale.LC_ALL, 'en_US.utf8')
+            amPm = ""
+            currencySymbol = "$"
 
         cdt = datetime.now()
 
@@ -63,12 +68,8 @@ class Solaredge(BasePlugin):
         solarProductionToday = 6.82
         solarCurrentPower = 2300
 
-        dapCurrentPrice = 0.305
-        dapNextPrice = 0.295
-
         consumptionToday = 4.5
 
-        renewableEnergyPercentage = 75
         renewableDescription = "Anteil EEG"
 
         chartMaxValue = 600
@@ -79,6 +80,24 @@ class Solaredge(BasePlugin):
             if not isinstance(s1, str) :
                 return s1
             return s1.replace(".", descimalSign)            
+
+        solar_base = SolarBase()
+        
+        dap_data = solar_base.get_dap_data(
+            settings, 
+            currencySymbol, 
+            replace_decimals,
+            bzn=settings.get('dapCountry', 'DE-LU')
+        )
+        dap_data["icon"] = self.get_plugin_dir(f'icons/euro.png')
+        
+        renewable_data = solar_base.get_renewable_data(
+            settings,
+            replace_decimals,
+            country="de",
+            description=renewableDescription
+        )
+        renewable_data["icon"] = self.get_plugin_dir(f'icons/leaf.png')
 
         data = {
             "solaredge_png": self.get_plugin_dir(f'icons/solaredge.png'),
@@ -95,36 +114,24 @@ class Solaredge(BasePlugin):
                 "production_today": replace_decimals(str(round(solarProductionToday, 1))) + " kWh",
                 "current_power": replace_decimals(str(round(solarCurrentPower, 0))) + " W"
             },
-            "dap": {    # DAP = Stock "Day Ahead Price" per kWh
-                "show": settings.get('showPriceData') == 'true',
-                "icon": self.get_plugin_dir(f'icons/euro.png'),
-                "currency_symbol": currencySymbol,
-                "current_time": "11:00",
-                "current_price": replace_decimals(f"{dapCurrentPrice:+}") + " " + currencySymbol,
-                "next_time": "11:15",
-                "next_price": replace_decimals(f"{dapNextPrice:+}") + " " + currencySymbol
-            },
+            "dap": dap_data,
             "power_plant": {
                 "icon": self.get_plugin_dir(f'icons/strommast.png'),
                 "consumption_today": replace_decimals(str(consumptionToday)) + " kWh"
             },
-            "current_date": {"week_day": cdt.strftime('%A'),
-                             "day": cdt.strftime('%d'),
-                             "month": cdt.strftime('%B'),
-                             "time" : cdt.strftime('%H:%M'),
-                             "am_pm" : amPm
-                            },
+            "current_date": {
+                "week_day": cdt.strftime('%A'),
+                "day": cdt.strftime('%d'),
+                "month": cdt.strftime('%B'),
+                "time": cdt.strftime('%I:%M') if country == "en" else cdt.strftime('%H:%M'),
+                "am_pm": cdt.strftime('%p') if country == "en" else amPm
+            },
             "chart": {
                 "max_value": chartMaxValue,
                 "values_shown": chartValuesShown,
                 "data": chartData
             },
-            "renewable": {
-                "show": settings.get('dapCountry') == 'DE-LU',
-                "icon": self.get_plugin_dir(f'icons/leaf.png'),
-                "description": renewableDescription,
-                "percentage": str(round(renewableEnergyPercentage, 0)) + " %"
-            }
+            "renewable": renewable_data
         }
 
         return data
