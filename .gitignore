@@ -165,5 +165,10 @@ cython_debug/
 
 # Development artifacts
 mock_display_output/
-src/static/images/current_image.png
-src/config/device_dev.json
+
+# IDE files
+.idea
+
+# Static Files added by install/update_vendors.sh
+/src/static/scripts/
+/src/static/styles/
