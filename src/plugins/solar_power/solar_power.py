@@ -1,13 +1,45 @@
 from plugins.base_plugin.base_plugin import BasePlugin
-from plugins.solar_power.solar_base import SolarBase
 from PIL import Image
 import locale
 import logging
 from datetime import datetime, timezone
 import pytz
 from io import BytesIO
+import importlib
 
 logger = logging.getLogger(__name__)
+
+def _load_solar_provider(provider_class_name):
+    """
+    Dynamically loads a solar provider class based on the class name.
+    
+    Args:
+        provider_class_name: Name of the provider class (e.g., "SolarStub", "SolarEdge")
+        
+    Returns:
+        The provider class
+        
+    Raises:
+        ImportError: If the module cannot be imported
+        AttributeError: If the class cannot be found in the module
+    """
+    # Convert class name to module name (e.g., SolarStub -> solar_stub)
+    module_name = ''.join(['_' + c.lower() if c.isupper() else c for c in provider_class_name]).lstrip('_')
+    
+    try:
+        # Import the module dynamically
+        module = importlib.import_module(f'plugins.solar_power.{module_name}')
+        
+        # Get the class from the module
+        provider_class = getattr(module, provider_class_name)
+        
+        logger.info(f"Successfully loaded solar provider: {provider_class_name}")
+        return provider_class
+        
+    except (ImportError, AttributeError) as e:
+        logger.error(f"Failed to load solar provider '{provider_class_name}': {e}")
+        raise
+
 
 class SolarPower(BasePlugin):
     def generate_settings_template(self):
@@ -37,7 +69,7 @@ class SolarPower(BasePlugin):
 
         template_params["plugin_settings"] = settings
 
-        image = self.render_image(dimensions, "solaredge.html", "solaredge.css", template_params)
+        image = self.render_image(dimensions, "solar_power.html", "solar_power.css", template_params)
 
         if not image:
             raise RuntimeError("Failed to take screenshot, please check logs.")
@@ -47,6 +79,7 @@ class SolarPower(BasePlugin):
     def parse_solar_data(self, settings):
 
         country = settings.get('country', 'en')
+        display_icon = settings.get('display_icon', 'solaredge')
         if country == "de":
             descimalSign = ","
             locale.setlocale(locale.LC_ALL, 'de_DE.utf8')
@@ -67,43 +100,25 @@ class SolarPower(BasePlugin):
                 return s1
             return s1.replace(".", descimalSign)            
 
-        solar_base = SolarBase()
-        
-        dap_data = solar_base.get_dap_data(
-            settings, 
-            currencySymbol, 
-            replace_decimals,
-            bzn=settings.get('dapCountry', 'DE-LU')
-        )
-        
-        renewable_data = solar_base.get_renewable_data(
-            settings,
-            replace_decimals,
-            country="de",
-            description=renewableDescription
-        )
-        
-        battery_data = solar_base.get_battery_data(
-            replace_decimals
-        )
-        
-        solar_data = solar_base.get_solar_data(
-            replace_decimals
-        )
-        
-        power_plant_data = solar_base.get_power_plant_data(
-            replace_decimals
-        )
+        # Load solar provider dynamically based on settings
+        provider_class_name = settings.get('solarProvider', 'SolarStub')
+        solar_provider = _getSolarProvider(provider_class_name)
+
+        dap_data = solar_provider.get_dap_data(settings, currencySymbol, replace_decimals, bzn=settings.get('dapCountry', 'DE-LU'))        
+        renewable_data = solar_provider.get_renewable_data(settings, replace_decimals, country="de", description=renewableDescription)        
+        battery_data = solar_provider.get_battery_data(replace_decimals)        
+        solar_data = solar_provider.get_solar_data(replace_decimals)        
+        power_plant_data = solar_provider.get_power_plant_data(replace_decimals)
         
         power_plant_data["icon"] = self.get_plugin_dir(f'icons/strommast.png')
         dap_data["icon"] = self.get_plugin_dir(f'icons/euro.png')
         solar_data["icon"] = self.get_plugin_dir(f'icons/solarhaus.png')
-        chart_data = solar_base.get_chart_data()
+        chart_data = solar_provider.get_chart_data()
         renewable_data["icon"] = self.get_plugin_dir(f'icons/leaf.png')
         battery_data["icon"] = self.get_plugin_dir(f'icons/battery-' + f'{int(round(battery_data["level"] / 10) * 10)}' + '.png')
 
         data = {
-            "solaredge_png": self.get_plugin_dir(f'icons/solaredge.png'),
+            "solarprovider_png": self.get_plugin_dir(f'icons/' + display_icon + '.png'),
             "star_png": self.get_plugin_dir(f'icons/star.png'),
             "dap": dap_data,
             "renewable": renewable_data,
@@ -121,4 +136,22 @@ class SolarPower(BasePlugin):
         }
 
         return data
+
+def _getSolarProvider(provider_class_name):
+    try:
+        provider_class = _load_solar_provider(provider_class_name)
+        solar_provider = provider_class()
+
+    except (ImportError, AttributeError) as e:
+        logger.warning(f"Failed to load provider '{provider_class_name}', falling back to SolarStub: {e}")
+        try:
+            # Try to load SolarStub as fallback
+            fallback_class = _load_solar_provider('SolarStub')
+            solar_provider = fallback_class()
+        except (ImportError, AttributeError) as fallback_error:
+            logger.error(f"Failed to load SolarStub fallback: {fallback_error}")
+
+    return solar_provider
+        
+        
     

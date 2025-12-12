@@ -4,7 +4,7 @@
   grid-template-columns: 1fr 1fr 1fr 1fr 1fr; /* Fractions */
   grid-template-rows: 1fr 1fr 1fr 1fr 1fr;
   grid-auto-flow: row;
-  background-color: lightgray;
+  background-color: gray;
   padding-top: 1%;
   padding-bottom: 1%;
   padding-left: 1%;
@@ -96,7 +96,7 @@
   align-items: center;
   font-size: min(6cqh, 6cqi);
   font-weight: bold;
-  line-height: 100%;
+  line-height: 90%;
   width: 100%;  
   height: 100%;    
 }
@@ -110,7 +110,7 @@
   align-items: center;
   font-size: min(7cqh, 7cqi);
   font-weight: bold;  
-  line-height: 100%;
+  line-height: 90%;
   width: 100%;  
   height: 100%;    
 }
@@ -147,7 +147,7 @@
 .title-icon {  
   padding: 1%;
   width: 100%;
-  height: 100%;
+  height: 90%;
 }
 
 .small-tile-description {

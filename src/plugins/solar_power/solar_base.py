@@ -1,11 +1,12 @@
 import requests
 from datetime import datetime, timedelta
+from plugins.solar_power.solar_provider import SolarProvider
 import pytz
 import logging
 
 logger = logging.getLogger(__name__)
 
-class SolarBase:
+class SolarBase(SolarProvider):
     def get_battery_data(self, replace_decimals_func):
         """
         Returns the battery dictionary.
