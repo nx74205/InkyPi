@@ -1,5 +1,5 @@
 from plugins.base_plugin.base_plugin import BasePlugin
-from plugins.solaredge.solar_base import SolarBase
+from plugins.solar_power.solar_base import SolarBase
 from PIL import Image
 import locale
 import logging
@@ -9,7 +9,7 @@ from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
-class Solaredge(BasePlugin):
+class SolarPower(BasePlugin):
     def generate_settings_template(self):
         template_params = super().generate_settings_template()
         template_params['api_key'] = {
