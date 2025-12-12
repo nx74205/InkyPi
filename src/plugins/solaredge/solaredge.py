@@ -60,21 +60,7 @@ class Solaredge(BasePlugin):
 
         cdt = datetime.now()
 
-        batteryLevel = round(45, 0)
-        batteryChargeAmount = 1256
-        batteryCapacity = 9700
-
-        solarMaxPower = 5500
-        solarProductionToday = 6.82
-        solarCurrentPower = 2300
-
-        consumptionToday = 4.5
-
         renewableDescription = "Anteil EEG"
-
-        chartMaxValue = 600
-        chartValuesShown = 14
-        chartData = [10,10,10,10,10,10,10,100,150,170,210,500,600,50,10,10,10,10,10,10,10,10,10,10]
 
         def replace_decimals(s1: str) -> str:
             if not isinstance(s1, str) :
@@ -89,7 +75,6 @@ class Solaredge(BasePlugin):
             replace_decimals,
             bzn=settings.get('dapCountry', 'DE-LU')
         )
-        dap_data["icon"] = self.get_plugin_dir(f'icons/euro.png')
         
         renewable_data = solar_base.get_renewable_data(
             settings,
@@ -97,41 +82,42 @@ class Solaredge(BasePlugin):
             country="de",
             description=renewableDescription
         )
+        
+        battery_data = solar_base.get_battery_data(
+            replace_decimals
+        )
+        
+        solar_data = solar_base.get_solar_data(
+            replace_decimals
+        )
+        
+        power_plant_data = solar_base.get_power_plant_data(
+            replace_decimals
+        )
+        
+        power_plant_data["icon"] = self.get_plugin_dir(f'icons/strommast.png')
+        dap_data["icon"] = self.get_plugin_dir(f'icons/euro.png')
+        solar_data["icon"] = self.get_plugin_dir(f'icons/solarhaus.png')
+        chart_data = solar_base.get_chart_data()
         renewable_data["icon"] = self.get_plugin_dir(f'icons/leaf.png')
+        battery_data["icon"] = self.get_plugin_dir(f'icons/battery-' + f'{int(round(battery_data["level"] / 10) * 10)}' + '.png')
 
         data = {
             "solaredge_png": self.get_plugin_dir(f'icons/solaredge.png'),
             "star_png": self.get_plugin_dir(f'icons/star.png'),
-            "battery": {
-                "icon": self.get_plugin_dir(f'icons/battery-' + f'{int(round(batteryLevel / 10) * 10)}' + '.png'),
-                "level": str(batteryLevel) + " %",
-                "capacity": replace_decimals(str(round(batteryCapacity/1000, 1)) + " kWh"),
-                "current_power": replace_decimals(str(round(batteryChargeAmount/1000, 1)) + " kWh")
-            },
-            "solar": {
-                "icon": self.get_plugin_dir(f'icons/solarhaus.png'),
-                "max_power": replace_decimals(str(round(solarMaxPower/1000, 1))) + " kWp",
-                "production_today": replace_decimals(str(round(solarProductionToday, 1))) + " kWh",
-                "current_power": replace_decimals(str(round(solarCurrentPower, 0))) + " W"
-            },
             "dap": dap_data,
-            "power_plant": {
-                "icon": self.get_plugin_dir(f'icons/strommast.png'),
-                "consumption_today": replace_decimals(str(consumptionToday)) + " kWh"
-            },
+            "renewable": renewable_data,
+            "battery": battery_data,
+            "solar": solar_data,
+            "power_plant": power_plant_data,
+            "chart": chart_data,
             "current_date": {
                 "week_day": cdt.strftime('%A'),
                 "day": cdt.strftime('%d'),
                 "month": cdt.strftime('%B'),
                 "time": cdt.strftime('%I:%M') if country == "en" else cdt.strftime('%H:%M'),
                 "am_pm": cdt.strftime('%p') if country == "en" else amPm
-            },
-            "chart": {
-                "max_value": chartMaxValue,
-                "values_shown": chartValuesShown,
-                "data": chartData
-            },
-            "renewable": renewable_data
+            }
         }
 
         return data

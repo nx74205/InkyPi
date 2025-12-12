@@ -6,6 +6,90 @@ import logging
 logger = logging.getLogger(__name__)
 
 class SolarBase:
+    def get_battery_data(self, replace_decimals_func):
+        """
+        Returns the battery dictionary.
+        
+        Args:
+            battery_level: Current battery level as percentage (0-100)
+            battery_charge_amount: Current charge amount in Wh
+            battery_capacity: Total battery capacity in Wh
+            replace_decimals_func: Function to replace decimal separator
+            
+        Returns:
+            Dictionary containing battery data with icon, level, capacity, and current power
+        """
+
+        battery_level = round(45, 0)
+        battery_charge_amount = 1256
+        battery_capacity = 9700
+
+        return {
+            "icon": None,  # Will be set by caller
+            "level": battery_level,
+            "level_text": str(battery_level) + " %",
+            "capacity": replace_decimals_func(str(round(battery_capacity/1000, 1)) + " kWh"),
+            "current_power": replace_decimals_func(str(round(battery_charge_amount/1000, 1)) + " kWh")
+        }
+
+    def get_solar_data(self, replace_decimals_func):
+        """
+        Returns the solar dictionary.
+        
+        Args:
+            replace_decimals_func: Function to replace decimal separator
+            
+        Returns:
+            Dictionary containing solar data with icon, max_power, production_today, and current_power
+        """
+        
+        solar_max_power = 5500
+        solar_production_today = 6.82
+        solar_current_power = 2300
+
+        return {
+            "icon": None,  # Will be set by caller
+            "max_power": replace_decimals_func(str(round(solar_max_power/1000, 1))) + " kWp",
+            "production_today": replace_decimals_func(str(round(solar_production_today, 1))) + " kWh",
+            "current_power": replace_decimals_func(str(round(solar_current_power, 0))) + " W"
+        }
+
+    def get_power_plant_data(self, replace_decimals_func):
+        """
+        Returns the power plant dictionary.
+        
+        Args:
+            replace_decimals_func: Function to replace decimal separator
+            
+        Returns:
+            Dictionary containing power plant data with icon and consumption_today
+        """
+        
+        consumption_today = 4.5
+
+        return {
+            "icon": None,  # Will be set by caller
+            "consumption_today": replace_decimals_func(str(consumption_today)) + " kWh"
+        }
+
+    def get_chart_data(self):
+        """
+        Returns the chart dictionary.
+        
+        Returns:
+            Dictionary containing chart data with max_value, values_shown, and data
+        """
+        
+        chart_max_value = 600
+        chart_values_shown = 14
+        chart_data = [10,10,10,10,10,10,10,100,150,170,210,500,600,50,10,10,10,10,10,10,10,10,10,10]
+
+        return {
+            "max_value": chart_max_value,
+            "values_shown": chart_values_shown,
+            "data": chart_data
+        }
+
     def get_dap_data(self, settings, currency_symbol, replace_decimals_func, bzn="DE-LU"):
         """
         Returns the DAP (Day Ahead Price) dictionary using live data from Energy-Charts API.
@@ -20,7 +104,7 @@ class SolarBase:
             Dictionary containing DAP data with current and next price
         """
         # Fetch price data from API
-        price_data = self.fetch_price_data(bzn=bzn)
+        price_data = self._fetch_price_data(bzn=bzn)
         
         if not price_data or not price_data.get('price') or not price_data.get('unix_seconds'):
             logger.warning("Could not fetch price data, using default values")
@@ -103,7 +187,7 @@ class SolarBase:
             Dictionary containing renewable energy data
         """
         # Fetch renewable share from API
-        renewable_percentage = self.fetch_renewable_share_forecast(country=country)
+        renewable_percentage = self._fetch_renewable_share_forecast(country=country)
         
         # Use fallback value if API call fails
         if renewable_percentage is None:
@@ -126,7 +210,7 @@ class SolarBase:
             "percentage": percentage_str
         }
 
-    def fetch_renewable_share_forecast(self, country="de"):
+    def _fetch_renewable_share_forecast(self, country="de"):
         """
         Fetches renewable share forecast from the Energy-Charts API.
         Returns the renewable share for the current timestamp.
@@ -188,7 +272,7 @@ class SolarBase:
             logger.error(f"Error parsing JSON response from Energy-Charts API: {e}")
             return None
 
-    def fetch_price_data(self, bzn="DE-LU", center_time=None):
+    def _fetch_price_data(self, bzn="DE-LU", center_time=None):
         """
         Fetches day-ahead spot market price data from the Energy-Charts API.
         The function automatically fetches data for a 60-minute window (±30 minutes around center_time).
