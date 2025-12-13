@@ -101,7 +101,7 @@ class SolarPower(BasePlugin):
             return s1.replace(".", descimalSign)            
 
         # Load solar provider dynamically based on settings
-        provider_class_name = settings.get('solarProvider', 'SolarStub')
+        provider_class_name = settings.get('solarProvider', 'SolarBase')
         solar_provider = _getSolarProvider(provider_class_name)
 
         dap_data = solar_provider.get_dap_data(settings, currencySymbol, replace_decimals, bzn=settings.get('dapCountry', 'DE-LU'))        

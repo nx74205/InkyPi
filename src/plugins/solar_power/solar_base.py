@@ -7,6 +7,40 @@ import logging
 logger = logging.getLogger(__name__)
 
 class SolarBase(SolarProvider):
+    # Base URL configuration
+    API_BASE_URL = 'http://192.168.0.140:8485/api/solar'
+    
+    # API endpoints
+    BATTERY_SOC_URL = f'{API_BASE_URL}/battery-soc/current'
+    BATTERY_DISCHARGED_URL = f'{API_BASE_URL}/battery/discharged'
+    BATTERY_CHARGED_URL = f'{API_BASE_URL}/battery/charged'
+    SOLAR_AC_OUT_SUMMARY_URL = f'{API_BASE_URL}/ac-out/summary'
+    SOLAR_CURRENT_POWER_URL = f'{API_BASE_URL}/ac-out/currentPower'
+    GRID_IMPORT_URL = f'{API_BASE_URL}/grid/import'
+    
+    # Configuration constants
+    SOLAR_MAX_POWER = 4400
+    BATTERY_CAPACITY = 9700
+    API_TIMEOUT = 5
+    CHART_VALUES_SHOWN = 14
+    DEFAULT_CHART_HOURS = 24
+    
+    # Fallback values
+    DEFAULT_BATTERY_LEVEL = 45
+    DEFAULT_BATTERY_CHARGED = 2589.0
+    DEFAULT_BATTERY_DISCHARGED = 1256.0
+    DEFAULT_SOLAR_PRODUCTION = 6820.0
+    DEFAULT_SOLAR_CURRENT = 2300.0
+    DEFAULT_GRID_IMPORT = 4500.0
+    
+    def _get_today_str(self):
+        """Returns today's date as string in YYYY-MM-DD format."""
+        return datetime.now().strftime('%Y-%m-%d')
+    
+    def _wh_to_kwh(self, wh_value, decimals=1):
+        """Convert Watt-hours to Kilowatt-hours with rounding."""
+        return round(wh_value / 1000, decimals)
+    
     def get_battery_data(self, replace_decimals_func):
         """
         Returns the battery dictionary.
@@ -21,16 +55,20 @@ class SolarBase(SolarProvider):
             Dictionary containing battery data with icon, level, capacity, and current power
         """
 
-        battery_level = round(45, 0)
-        battery_charge_amount = 1256
-        battery_capacity = 9700
+        # Fetch battery level from API
+        battery_level = self._fetch_battery_soc()
+        
+        # Fetch battery charged/discharged from API
+        today = self._get_today_str()
+        battery_charged = self._fetch_battery_charged(today)
+        battery_discharged = self._fetch_battery_discharged(today)
 
         return {
             "icon": None,  # Will be set by caller
             "level": battery_level,
             "level_text": str(battery_level) + " %",
-            "capacity": replace_decimals_func(str(round(battery_capacity/1000, 1)) + " kWh"),
-            "current_power": replace_decimals_func(str(round(battery_charge_amount/1000, 1)) + " kWh")
+            "capacity": replace_decimals_func(str(self._wh_to_kwh(self.BATTERY_CAPACITY)) + " kWh"),
+            "current_power": f"+{replace_decimals_func(str(self._wh_to_kwh(battery_charged)))} kWh/-{replace_decimals_func(str(self._wh_to_kwh(battery_discharged)))} kWh"
         }
 
     def get_solar_data(self, replace_decimals_func):
@@ -42,17 +80,20 @@ class SolarBase(SolarProvider):
             
         Returns:
             Dictionary containing solar data with icon, max_power, production_today, and current_power
-        """
+        """        
+
+        # Fetch solar production from API
+        today = self._get_today_str()
+        solar_production_today = self._fetch_solar_production(today)
         
-        solar_max_power = 5500
-        solar_production_today = 6.82
-        solar_current_power = 2300
+        # Fetch current solar power from API
+        solar_current_power = self._fetch_solar_current_power()
 
         return {
             "icon": None,  # Will be set by caller
-            "max_power": replace_decimals_func(str(round(solar_max_power/1000, 1))) + " kWp",
-            "production_today": replace_decimals_func(str(round(solar_production_today, 1))) + " kWh",
-            "current_power": replace_decimals_func(str(round(solar_current_power, 0))) + " W"
+            "max_power": replace_decimals_func(str(self._wh_to_kwh(self.SOLAR_MAX_POWER))) + " kWp",
+            "production_today": replace_decimals_func(str(self._wh_to_kwh(solar_production_today))) + " kWh",
+            "current_power": str(int(round(solar_current_power))) + " W"
         }
 
     def get_power_plant_data(self, replace_decimals_func):
@@ -66,11 +107,13 @@ class SolarBase(SolarProvider):
             Dictionary containing power plant data with icon and consumption_today
         """
         
-        consumption_today = 4.5
+        # Fetch grid import from API
+        today = self._get_today_str()
+        consumption_today = self._fetch_grid_import(today)
 
         return {
             "icon": None,  # Will be set by caller
-            "consumption_today": replace_decimals_func(str(consumption_today)) + " kWh"
+            "consumption_today": replace_decimals_func(str(self._wh_to_kwh(consumption_today))) + " kWh"
         }
 
     def get_chart_data(self):
@@ -81,13 +124,13 @@ class SolarBase(SolarProvider):
             Dictionary containing chart data with max_value, values_shown, and data
         """
         
-        chart_max_value = 600
-        chart_values_shown = 14
-        chart_data = [10,10,10,10,10,10,10,100,150,170,210,500,600,50,10,10,10,10,10,10,10,10,10,10]
+        # Fetch chart data from API
+        today = self._get_today_str()
+        chart_data = self._fetch_solar_ac_out_chart_data(today)
 
         return {
-            "max_value": chart_max_value,
-            "values_shown": chart_values_shown,
+            "max_value": self.SOLAR_MAX_POWER,
+            "values_shown": self.CHART_VALUES_SHOWN,
             "data": chart_data
         }
 
@@ -348,3 +391,156 @@ class SolarBase(SolarProvider):
             logger.error(f"Error parsing JSON response from Energy-Charts API: {e}")
             return None
 
+    def _fetch_battery_soc(self):
+        """
+        Fetches the current battery state of charge (SOC) from the local API.
+        
+        Returns:
+            Float value of current battery level (0-100%) or fallback value if request fails
+        """
+        try:
+            response = requests.get(self.BATTERY_SOC_URL, timeout=self.API_TIMEOUT)
+            response.raise_for_status()
+            data = response.json()
+            
+            # Extract battery level from 'percent' field
+            battery_level = int(round(float(data['percent'])))
+            logger.info(f"Successfully fetched battery level: {battery_level}%")
+            return battery_level
+        except (requests.exceptions.RequestException, ValueError, KeyError, TypeError) as e:
+            logger.error(f"Failed to fetch battery level from API: {e}")
+            return int(self.DEFAULT_BATTERY_LEVEL)
+
+    def _fetch_battery_discharged(self, date):
+        """
+        Fetches the total battery discharged energy for a specific date from the local API.
+        
+        Args:
+            date: Date string in format 'YYYY-MM-DD'
+            
+        Returns:
+            Float value of total discharged energy in Wh or fallback value if request fails
+        """
+        try:
+            response = requests.get(self.BATTERY_DISCHARGED_URL, params={'date': date}, timeout=self.API_TIMEOUT)
+            response.raise_for_status()
+            data = response.json()
+            
+            # Extract total discharged from 'totalDischarged' field
+            discharged = float(data['totalDischarged'])
+            logger.info(f"Successfully fetched battery discharged: {discharged} Wh for {date}")
+            return discharged
+        except (requests.exceptions.RequestException, ValueError, KeyError, TypeError) as e:
+            logger.error(f"Failed to fetch battery discharged from API: {e}")
+            return self.DEFAULT_BATTERY_DISCHARGED
+
+    def _fetch_battery_charged(self, date):
+        """
+        Fetches the total battery charged energy for a specific date from the local API.
+        
+        Args:
+            date: Date string in format 'YYYY-MM-DD'
+            
+        Returns:
+            Float value of total charged energy in Wh or fallback value if request fails
+        """
+        try:
+            response = requests.get(self.BATTERY_CHARGED_URL, params={'date': date}, timeout=self.API_TIMEOUT)
+            response.raise_for_status()
+            data = response.json()
+            
+            # Extract total charged from 'totalCharged' field
+            charged = float(data['totalCharged'])
+            logger.info(f"Successfully fetched battery charged: {charged} Wh for {date}")
+            return charged
+        except (requests.exceptions.RequestException, ValueError, KeyError, TypeError) as e:
+            logger.error(f"Failed to fetch battery charged from API: {e}")
+            return self.DEFAULT_BATTERY_CHARGED
+
+    def _fetch_solar_production(self, date):
+        """
+        Fetches the total solar production (AC output) for a specific date from the local API.
+        
+        Args:
+            date: Date string in format 'YYYY-MM-DD'
+            
+        Returns:
+            Float value of total solar production in Wh or fallback value if request fails
+        """
+        try:
+            response = requests.get(self.SOLAR_AC_OUT_SUMMARY_URL, params={'date': date}, timeout=self.API_TIMEOUT)
+            response.raise_for_status()
+            data = response.json()
+            
+            # Sum all ac_out values
+            total_ac_out = sum(item.get('ac_out', 0) for item in data if isinstance(item, dict))
+            logger.info(f"Successfully fetched solar production: {total_ac_out} Wh for {date}")
+            return total_ac_out
+        except (requests.exceptions.RequestException, ValueError, KeyError, TypeError) as e:
+            logger.error(f"Failed to fetch solar production from API: {e}")
+            return self.DEFAULT_SOLAR_PRODUCTION
+
+    def _fetch_solar_current_power(self):
+        """
+        Fetches the current solar power (AC output) from the local API.
+        
+        Returns:
+            Float value of current solar power in W or fallback value if request fails
+        """
+        try:
+            response = requests.get(self.SOLAR_CURRENT_POWER_URL, timeout=self.API_TIMEOUT)
+            response.raise_for_status()
+            data = response.json()
+            
+            # Extract current power from 'value' field
+            current_power = float(data['value'])
+            logger.info(f"Successfully fetched solar current power: {current_power} W")
+            return current_power
+        except (requests.exceptions.RequestException, ValueError, KeyError, TypeError) as e:
+            logger.error(f"Failed to fetch solar current power from API: {e}")
+            return self.DEFAULT_SOLAR_CURRENT
+
+    def _fetch_grid_import(self, date):
+        """
+        Fetch grid import energy for a specific date from API.
+        
+        Args:
+            date: Date string in format 'YYYY-MM-DD'
+            
+        Returns:
+            Total imported energy in Watt-hours (as float)
+        """
+        try:
+            response = requests.get(self.GRID_IMPORT_URL, params={'date': date}, timeout=self.API_TIMEOUT)
+            response.raise_for_status()
+            data = response.json()
+            imported = float(data['totalImported'])
+            logger.info(f"Successfully fetched grid import: {imported} Wh for {date}")
+            return imported
+        except (requests.exceptions.RequestException, ValueError, KeyError, TypeError) as e:
+            logger.error(f"Failed to fetch grid import from API: {e}")
+            return self.DEFAULT_GRID_IMPORT
+
+    def _fetch_solar_ac_out_chart_data(self, date):
+        """
+        Fetch solar AC output hourly data for chart display.
+        
+        Args:
+            date: Date string in format 'YYYY-MM-DD'
+            
+        Returns:
+            List of ac_out values (in Wh) for 24 hours, or fallback data if request fails
+        """
+        try:
+            response = requests.get(self.SOLAR_AC_OUT_SUMMARY_URL, params={'date': date}, timeout=self.API_TIMEOUT)
+            response.raise_for_status()
+            data = response.json()
+            
+            # Extract ac_out values from the hourly data
+            ac_out_values = [item.get('ac_out', 0) for item in data if isinstance(item, dict)]
+            logger.info(f"Successfully fetched chart data: {len(ac_out_values)} data points for {date}")
+            return ac_out_values
+        except (requests.exceptions.RequestException, ValueError, KeyError, TypeError) as e:
+            logger.error(f"Failed to fetch chart data from API: {e}")
+            # Fallback: return 24 hours of zero values
+            return [0] * self.DEFAULT_CHART_HOURS

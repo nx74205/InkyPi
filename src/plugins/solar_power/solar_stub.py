@@ -1,12 +1,24 @@
 import requests
 from datetime import datetime, timedelta
 from plugins.solar_power.solar_provider import SolarProvider
-import pytz
 import logging
 
 logger = logging.getLogger(__name__)
 
 class SolarStub(SolarProvider):
+    # Stub default values
+    DEFAULT_BATTERY_LEVEL = 45
+    DEFAULT_BATTERY_CHARGED = 1500
+    DEFAULT_BATTERY_DISCHARGED = 2000
+    DEFAULT_BATTERY_CAPACITY = 9700
+    DEFAULT_SOLAR_MAX_POWER = 5500
+    DEFAULT_SOLAR_PRODUCTION = 6.82
+    DEFAULT_SOLAR_CURRENT = 2300
+    DEFAULT_CONSUMPTION = 4.5
+    DEFAULT_CHART_MAX = 600
+    DEFAULT_CHART_VALUES = 14
+    # 24-hour chart data (hourly values in W)
+    DEFAULT_CHART_DATA = [10,10,10,10,10,10,10,100,150,170,210,500,600,50,10,10,10,10,10,10,10,10,10,10]
     def get_battery_data(self, replace_decimals_func):
         """
         Returns the battery dictionary.
@@ -21,16 +33,17 @@ class SolarStub(SolarProvider):
             Dictionary containing battery data with icon, level, capacity, and current power
         """
 
-        battery_level = round(45, 0)
-        battery_charge_amount = 1256
-        battery_capacity = 9700
+        battery_level = self.DEFAULT_BATTERY_LEVEL
+        battery_charged = self.DEFAULT_BATTERY_CHARGED
+        battery_discharged = self.DEFAULT_BATTERY_DISCHARGED
+        battery_capacity = self.DEFAULT_BATTERY_CAPACITY
 
         return {
             "icon": None,  # Will be set by caller
             "level": battery_level,
             "level_text": str(battery_level) + " %",
             "capacity": replace_decimals_func(str(round(battery_capacity/1000, 1)) + " kWh"),
-            "current_power": replace_decimals_func(str(round(battery_charge_amount/1000, 1)) + " kWh")
+            "current_power": f"+{replace_decimals_func(str(round(battery_charged/1000, 1)))} kWh/-{replace_decimals_func(str(round(battery_discharged/1000, 1)))} kWh"
         }
 
     def get_solar_data(self, replace_decimals_func):
@@ -44,15 +57,15 @@ class SolarStub(SolarProvider):
             Dictionary containing solar data with icon, max_power, production_today, and current_power
         """
         
-        solar_max_power = 5500
-        solar_production_today = 6.82
-        solar_current_power = 2300
+        solar_max_power = self.DEFAULT_SOLAR_MAX_POWER
+        solar_production_today = self.DEFAULT_SOLAR_PRODUCTION
+        solar_current_power = self.DEFAULT_SOLAR_CURRENT
 
         return {
             "icon": None,  # Will be set by caller
             "max_power": replace_decimals_func(str(round(solar_max_power/1000, 1))) + " kWp",
             "production_today": replace_decimals_func(str(round(solar_production_today, 1))) + " kWh",
-            "current_power": replace_decimals_func(str(round(solar_current_power, 0))) + " W"
+            "current_power": str(int(round(solar_current_power))) + " W"
         }
 
     def get_power_plant_data(self, replace_decimals_func):
@@ -66,7 +79,7 @@ class SolarStub(SolarProvider):
             Dictionary containing power plant data with icon and consumption_today
         """
         
-        consumption_today = 4.5
+        consumption_today = self.DEFAULT_CONSUMPTION
 
         return {
             "icon": None,  # Will be set by caller
@@ -81,9 +94,9 @@ class SolarStub(SolarProvider):
             Dictionary containing chart data with max_value, values_shown, and data
         """
         
-        chart_max_value = 600
-        chart_values_shown = 14
-        chart_data = [10,10,10,10,10,10,10,100,150,170,210,500,600,50,10,10,10,10,10,10,10,10,10,10]
+        chart_max_value = self.DEFAULT_CHART_MAX
+        chart_values_shown = self.DEFAULT_CHART_VALUES
+        chart_data = self.DEFAULT_CHART_DATA
 
         return {
             "max_value": chart_max_value,
