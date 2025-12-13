@@ -123,9 +123,9 @@ class SolarStub(SolarProvider):
             "icon": None,
             "currency_symbol": currency_symbol,
             "current_time": "09:00",
-            "current_price": "0.123 $",
+            "current_price": replace_decimals_func("0.123 ") + currency_symbol,
             "next_time": "09:15",
-            "next_price": "0.234 $"
+            "next_price": replace_decimals_func("0.234 ") + currency_symbol
         }
         
 

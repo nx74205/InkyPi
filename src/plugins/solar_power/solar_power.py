@@ -78,22 +78,22 @@ class SolarPower(BasePlugin):
 
     def parse_solar_data(self, settings):
 
-        country = settings.get('country', 'en')
-        display_icon = settings.get('display_icon', 'solaredge')
+        country = settings.get('language', 'en')
+        provider_class_name = settings.get('solarProvider', 'SolarBase')
+        display_icon = settings.get('displayIcon', 'solaredge')
+
         if country == "de":
             descimalSign = ","
             locale.setlocale(locale.LC_ALL, 'de_DE.utf8')
-            amPm = "Uhr"
             currencySymbol = "€"
+            renewableDescription = "Erneuerbare"
         else:
             descimalSign = "."
             locale.setlocale(locale.LC_ALL, 'en_US.utf8')
-            amPm = ""
             currencySymbol = "$"
+            renewableDescription = "Renewables"
 
         cdt = datetime.now()
-
-        renewableDescription = "Anteil EEG"
 
         def replace_decimals(s1: str) -> str:
             if not isinstance(s1, str) :
@@ -101,7 +101,6 @@ class SolarPower(BasePlugin):
             return s1.replace(".", descimalSign)            
 
         # Load solar provider dynamically based on settings
-        provider_class_name = settings.get('solarProvider', 'SolarBase')
         solar_provider = _getSolarProvider(provider_class_name)
 
         dap_data = solar_provider.get_dap_data(settings, currencySymbol, replace_decimals, bzn=settings.get('dapCountry', 'DE-LU'))        
@@ -131,7 +130,7 @@ class SolarPower(BasePlugin):
                 "day": cdt.strftime('%d'),
                 "month": cdt.strftime('%B'),
                 "time": cdt.strftime('%I:%M') if country == "en" else cdt.strftime('%H:%M'),
-                "am_pm": cdt.strftime('%p') if country == "en" else amPm
+                "am_pm": cdt.strftime('%p') if country == "en" else ""
             }
         }
 

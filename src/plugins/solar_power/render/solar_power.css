@@ -141,7 +141,6 @@
   width: 77%;  
   height: 100%;
   text-align: center;
-  /*font-weight: bold; */
 }
 
 .title-icon {  
@@ -152,10 +151,10 @@
 
 .small-tile-description {
   font-size: min(4cqh, 4cqi);
+  padding-right: 5%;
   width: 77%;  
   height: 100%;
   text-align: center;
-  /*font-weight: bold; */
 }
 
 .small-tile-value {
