@@ -127,7 +127,7 @@ class SolarPower(BasePlugin):
             "chart": chart_data,
             "current_date": {
                 "week_day": cdt.strftime('%A'),
-                "day": cdt.strftime('%d'),
+                "day": cdt.strftime('%d.'),
                 "month": cdt.strftime('%B'),
                 "time": cdt.strftime('%I:%M') if country == "en" else cdt.strftime('%H:%M'),
                 "am_pm": cdt.strftime('%p') if country == "en" else ""

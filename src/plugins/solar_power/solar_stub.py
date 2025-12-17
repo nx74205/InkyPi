@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class SolarStub(SolarProvider):
     # Stub default values
-    DEFAULT_BATTERY_LEVEL = 45
+    DEFAULT_BATTERY_LEVEL = 0
     DEFAULT_BATTERY_CHARGED = 1500
     DEFAULT_BATTERY_DISCHARGED = 2000
     DEFAULT_BATTERY_CAPACITY = 9700
