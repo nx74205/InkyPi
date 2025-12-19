@@ -55,7 +55,7 @@ class SolarPower(BasePlugin):
     def generate_image(self, settings, device_config):
 
         try:
-            template_params = self.parse_solar_data(settings)
+            template_params = self.parse_solar_data(settings, device_config)
             template_params['title'] = "Solarertrag"
             template_params["plugin_settings"] = settings
 
@@ -76,11 +76,20 @@ class SolarPower(BasePlugin):
             
         return image
 
-    def parse_solar_data(self, settings):
+    def parse_solar_data(self, settings, device_config):
 
         country = settings.get('language', 'en')
         provider_class_name = settings.get('solarProvider', 'SolarBase')
         display_icon = settings.get('displayIcon', 'solaredge')
+
+        # Load API credentials for SolarEdge
+        api_key = None
+        site_id = None
+        if provider_class_name == 'Solaredge':
+            api_key = device_config.load_env_key("SOLAREDGE_API_KEY")
+            site_id = device_config.load_env_key("SOLAREDGE_SITE_ID")
+            if not api_key or not site_id:
+                logger.warning("SolarEdge API credentials not configured, using fallback values")
 
         if country == "de":
             descimalSign = ","
@@ -101,7 +110,7 @@ class SolarPower(BasePlugin):
             return s1.replace(".", descimalSign)            
 
         # Load solar provider dynamically based on settings
-        solar_provider = _getSolarProvider(provider_class_name)
+        solar_provider = _getSolarProvider(provider_class_name, api_key, site_id)
 
         dap_data = solar_provider.get_dap_data(settings, currencySymbol, replace_decimals, bzn=settings.get('dapCountry', 'DE-LU'))        
         renewable_data = solar_provider.get_renewable_data(settings, replace_decimals, country="de", description=renewableDescription)        
@@ -136,10 +145,15 @@ class SolarPower(BasePlugin):
 
         return data
 
-def _getSolarProvider(provider_class_name):
+def _getSolarProvider(provider_class_name, api_key=None, site_id=None):
     try:
         provider_class = _load_solar_provider(provider_class_name)
-        solar_provider = provider_class()
+        
+        # Instantiate with API credentials if provided
+        if api_key and site_id:
+            solar_provider = provider_class(api_key=api_key, site_id=site_id)
+        else:
+            solar_provider = provider_class()
 
     except (ImportError, AttributeError) as e:
         logger.warning(f"Failed to load provider '{provider_class_name}', falling back to SolarStub: {e}")

@@ -1,0 +1,405 @@
+import requests
+from datetime import datetime, timedelta
+from plugins.solar_power.solar_provider import SolarProvider
+import pytz
+import logging
+
+logger = logging.getLogger(__name__)
+
+class Solaredge(SolarProvider):
+    """
+    SolarEdge API implementation for solar data retrieval.
+    Requires SOLAREDGE_API_KEY and site_id in settings.
+    
+    API Documentation: https://knowledge-center.solaredge.com/sites/kc/files/se_monitoring_api.pdf
+    """
+    
+    # Configuration constants
+    SOLAREDGE_BASE_URL = 'https://monitoringapi.solaredge.com'
+    API_TIMEOUT = 10
+    CHART_VALUES_SHOWN = 14
+    DEFAULT_CHART_HOURS = 24
+    
+    # Fallback values
+    DEFAULT_BATTERY_LEVEL = 45
+    DEFAULT_BATTERY_CHARGED = 2589.0
+    DEFAULT_BATTERY_DISCHARGED = 1256.0
+    DEFAULT_BATTERY_CAPACITY = 9700
+    DEFAULT_SOLAR_MAX_POWER = 4400
+    DEFAULT_SOLAR_PRODUCTION = 6820.0
+    DEFAULT_SOLAR_CURRENT = 2300.0
+    DEFAULT_CONSUMPTION = 4500.0
+    
+    def __init__(self, api_key=None, site_id=None):
+        """
+        Initialize SolarEdge provider.
+        
+        Args:
+            api_key: SolarEdge API key
+            site_id: SolarEdge site ID
+        """
+        self.api_key = api_key
+        self.site_id = site_id
+        
+        if not self.api_key or not self.site_id:
+            logger.warning("SolarEdge API key or site_id not provided, using fallback values")
+        
+    def _get_today_str(self):
+        """Returns today's date as string in YYYY-MM-DD format."""
+        return datetime.now().strftime('%Y-%m-%d')
+    
+    def _wh_to_kwh(self, wh_value, decimals=1):
+        """Convert Watt-hours to Kilowatt-hours with rounding."""
+        return round(wh_value / 1000, decimals)
+    
+    def _make_api_request(self, endpoint, params=None):
+        """
+        Make a request to the SolarEdge API.
+        
+        Args:
+            endpoint: API endpoint (e.g., 'currentPowerFlow')
+            params: Additional query parameters
+            
+        Returns:
+            JSON response data or None on error
+        """
+        if not self.api_key or not self.site_id:
+            return None
+            
+        url = f"{self.SOLAREDGE_BASE_URL}/site/{self.site_id}/{endpoint}"
+        
+        request_params = {'api_key': self.api_key}
+        if params:
+            request_params.update(params)
+        
+        try:
+            response = requests.get(url, params=request_params, timeout=self.API_TIMEOUT)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"SolarEdge API request failed for {endpoint}: {e}")
+            return None
+    
+    def _fetch_current_power_flow(self):
+        """
+        Fetch current power flow data from SolarEdge API.
+        
+        Returns:
+            Power flow data dict or None
+        """
+        data = self._make_api_request('currentPowerFlow')
+        if data and 'siteCurrentPowerFlow' in data:
+            return data['siteCurrentPowerFlow']
+        return None
+    
+    def _fetch_energy_details(self, start_date, end_date, time_unit='DAY'):
+        """
+        Fetch energy data for a date range.
+        
+        Args:
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+            time_unit: Time unit (DAY, QUARTER_OF_AN_HOUR, HOUR)
+            
+        Returns:
+            Energy data dict or None
+        """
+        params = {
+            'startDate': start_date,
+            'endDate': end_date,
+            'timeUnit': time_unit
+        }
+        return self._make_api_request('energy', params)
+    
+    def _fetch_storage_data(self, start_date, end_date):
+        """
+        Fetch battery storage data.
+        
+        Args:
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+            
+        Returns:
+            Storage data dict or None
+        """
+        params = {
+            'startTime': start_date + ' 00:00:00',
+            'endTime': end_date + ' 23:59:59'
+        }
+        return self._make_api_request('storageData', params)
+    
+    def _fetch_site_details(self):
+        """
+        Fetch site details including peak power.
+        
+        Returns:
+            Site details dict or None
+        """
+        data = self._make_api_request('details')
+        if data and 'details' in data:
+            return data['details']
+        return None
+    
+    def get_battery_data(self, replace_decimals_func):
+        """
+        Returns the battery dictionary.
+        
+        Args:
+            replace_decimals_func: Function to replace decimal separator
+            
+        Returns:
+            Dictionary containing battery data with icon, level, capacity, and current power
+        """
+        # Fetch current power flow for battery status
+        power_flow = self._fetch_current_power_flow()
+        
+        # Fetch storage data for today
+        today = self._get_today_str()
+        storage_data = self._fetch_storage_data(today, today)
+        
+        # Extract battery level from power flow
+        battery_level = self.DEFAULT_BATTERY_LEVEL
+        if power_flow and 'STORAGE' in power_flow:
+            battery_info = power_flow['STORAGE']
+            if 'chargeLevel' in battery_info:
+                battery_level = int(battery_info['chargeLevel'])
+        
+        # Extract charge/discharge from storage data
+        battery_charged = self.DEFAULT_BATTERY_CHARGED
+        battery_discharged = self.DEFAULT_BATTERY_DISCHARGED
+        battery_capacity = self.DEFAULT_BATTERY_CAPACITY
+        
+        if storage_data and 'storageData' in storage_data:
+            batteries = storage_data['storageData'].get('batteries', [])
+            if batteries:
+                # Get capacity from first telemetry entry if available
+                first_battery = batteries[0]
+                telemetries = first_battery.get('telemetries', [])
+                if telemetries and len(telemetries) > 0:
+                    first_telemetry = telemetries[0]
+                    if 'fullPackEnergyAvailable' in first_telemetry:
+                        battery_capacity = first_telemetry['fullPackEnergyAvailable']
+                
+                # Sum up all batteries for charge/discharge
+                total_charged = 0
+                total_discharged = 0
+                
+                # Collect all lifeTimeEnergyCharged values to calculate today's charge
+                lifetime_charged_values = []
+                lifetime_discharged_values = []
+                
+                for battery in batteries:
+                    telemetries = battery.get('telemetries', [])
+                    for telemetry in telemetries:
+                        # Collect lifetime energy values
+                        if 'lifeTimeEnergyCharged' in telemetry and telemetry['lifeTimeEnergyCharged'] is not None:
+                            lifetime_charged_values.append(telemetry['lifeTimeEnergyCharged'])
+                        if 'lifeTimeEnergyDischarged' in telemetry and telemetry['lifeTimeEnergyDischarged'] is not None:
+                            lifetime_discharged_values.append(telemetry['lifeTimeEnergyDischarged'])
+                
+                logger.info(f"Found {len(lifetime_charged_values)} charged values and {len(lifetime_discharged_values)} discharged values")
+                
+                # Calculate charged today as difference between max and min lifetime values
+                if len(lifetime_charged_values) >= 1:
+                    if len(lifetime_charged_values) == 1:
+                        # Only one value, use it as the total (assuming start of day was 0)
+                        total_charged = lifetime_charged_values[0]
+                    else:
+                        # Multiple values, use difference
+                        total_charged = max(lifetime_charged_values) - min(lifetime_charged_values)
+                    logger.info(f"Calculated battery charged: {total_charged} Wh")
+                
+                # Calculate discharged today as difference between max and min lifetime values
+                if len(lifetime_discharged_values) >= 1:
+                    if len(lifetime_discharged_values) == 1:
+                        # Only one value, use it as the total (assuming start of day was 0)
+                        total_discharged = lifetime_discharged_values[0]
+                    else:
+                        # Multiple values, use difference
+                        total_discharged = max(lifetime_discharged_values) - min(lifetime_discharged_values)
+                    logger.info(f"Calculated battery discharged: {total_discharged} Wh")
+                
+                # Use calculated values if we have data, even if they are 0
+                if len(lifetime_charged_values) >= 1:
+                    battery_charged = total_charged
+                if len(lifetime_discharged_values) >= 1:
+                    battery_discharged = total_discharged
+        
+        logger.info(f"Output: " + f"+{replace_decimals_func(str(self._wh_to_kwh(battery_charged)))} kWh/-{replace_decimals_func(str(self._wh_to_kwh(battery_discharged)))} kWh")
+        return {
+            "icon": None,  # Will be set by caller
+            "level": battery_level,
+            "level_text": str(battery_level) + " %",
+            "capacity": replace_decimals_func(str(self._wh_to_kwh(battery_capacity)) + " kWh"),
+            "current_power": f"+{replace_decimals_func(str(self._wh_to_kwh(battery_charged)))} kWh/-{replace_decimals_func(str(self._wh_to_kwh(battery_discharged)))} kWh"
+        }
+
+    def get_solar_data(self, replace_decimals_func):
+        """
+        Returns the solar dictionary.
+        
+        Args:
+            replace_decimals_func: Function to replace decimal separator
+            
+        Returns:
+            Dictionary containing solar data with icon, max_power, production_today, and current_power
+        """
+        # Fetch site details for max power
+        site_details = self._fetch_site_details()
+        solar_max_power = self.DEFAULT_SOLAR_MAX_POWER
+        if site_details and 'peakPower' in site_details:
+            # peakPower is in W
+            solar_max_power = site_details['peakPower']
+        
+        # Fetch energy for today
+        today = self._get_today_str()
+        energy_data = self._fetch_energy_details(today, today)
+        
+        solar_production_today = self.DEFAULT_SOLAR_PRODUCTION
+        if energy_data and 'energy' in energy_data:
+            values = energy_data['energy'].get('values', [])
+            if values:
+                # Sum all energy values for today (in Wh)
+                solar_production_today = sum(v.get('value', 0) for v in values if v.get('value'))
+        
+        # Fetch current power from power flow
+        power_flow = self._fetch_current_power_flow()
+        solar_current_power = self.DEFAULT_SOLAR_CURRENT
+        if power_flow and 'PV' in power_flow:
+            pv_info = power_flow['PV']
+            if 'currentPower' in pv_info:
+                # currentPower is in W
+                solar_current_power = pv_info['currentPower']
+
+        return {
+            "icon": None,  # Will be set by caller
+            "max_power": replace_decimals_func(str(self._wh_to_kwh(solar_max_power))) + " kWp",
+            "production_today": replace_decimals_func(str(self._wh_to_kwh(solar_production_today))) + " kWh",
+            "current_power": str(int(round(solar_current_power))) + " W"
+        }
+
+    def get_power_plant_data(self, replace_decimals_func):
+        """
+        Returns the power plant dictionary.
+        
+        Args:
+            replace_decimals_func: Function to replace decimal separator
+            
+        Returns:
+            Dictionary containing power plant data with icon and consumption_today
+        """
+        # Fetch current power flow for grid consumption
+        power_flow = self._fetch_current_power_flow()
+        
+        consumption_today = self.DEFAULT_CONSUMPTION
+        if power_flow and 'GRID' in power_flow:
+            grid_info = power_flow['GRID']
+            if 'currentPower' in grid_info:
+                # currentPower is in W, positive = importing from grid
+                grid_power = grid_info['currentPower']
+                if grid_power > 0:
+                    # This is instantaneous, we'd need to sum over the day
+                    # For now, use energy API
+                    pass
+        
+        # Try to get consumption from energy API
+        today = self._get_today_str()
+        energy_data = self._fetch_energy_details(today, today)
+        
+        if energy_data and 'energy' in energy_data:
+            values = energy_data['energy'].get('values', [])
+            if values:
+                # This gives production, not consumption
+                # SolarEdge doesn't directly provide consumption in basic API
+                # Would need consumption meter data
+                pass
+
+        return {
+            "icon": None,  # Will be set by caller
+            "consumption_today": replace_decimals_func(str(self._wh_to_kwh(consumption_today))) + " kWh"
+        }
+
+    def get_chart_data(self):
+        """
+        Returns the chart dictionary with hourly solar production for today.
+        
+        Returns:
+            Dictionary containing chart data with max_value, values_shown, and data
+        """
+        today = self._get_today_str()
+        
+        # Fetch energy data with QUARTER_OF_AN_HOUR resolution for more detail
+        energy_data = self._fetch_energy_details(today, today, time_unit='QUARTER_OF_AN_HOUR')
+        
+        chart_data = [0] * self.DEFAULT_CHART_HOURS
+        
+        if energy_data and 'energy' in energy_data:
+            values = energy_data['energy'].get('values', [])
+            
+            # Group by hour (4 quarter-hour values per hour)
+            hourly_data = [0] * 24
+            for i, value_dict in enumerate(values):
+                value = value_dict.get('value', 0)
+                if value:
+                    hour = i // 4  # 4 quarters per hour
+                    if hour < 24:
+                        hourly_data[hour] += value
+            
+            chart_data = hourly_data
+        
+        # Get max power from site details
+        site_details = self._fetch_site_details()
+        max_value = self.DEFAULT_SOLAR_MAX_POWER
+        if site_details and 'peakPower' in site_details:
+            max_value = site_details['peakPower']
+
+        return {
+            "max_value": max_value,
+            "values_shown": self.CHART_VALUES_SHOWN,
+            "data": chart_data
+        }
+
+    def get_dap_data(self, settings, currency_symbol, replace_decimals_func, bzn="DE-LU"):
+        """
+        Returns the DAP (Day Ahead Price) dictionary.
+        For SolarEdge, we don't have price data, so return default structure.
+        
+        Args:
+            settings: Plugin settings dictionary
+            currency_symbol: Currency symbol (e.g., "€")
+            replace_decimals_func: Function to replace decimal separator
+            bzn: Bidding zone (default: "DE-LU" for Germany/Luxembourg)
+            
+        Returns:
+            Dictionary containing DAP data with current and next price
+        """
+        return {
+            "show": settings.get('showPriceData') == 'true',
+            "icon": None,
+            "currency_symbol": currency_symbol,
+            "current_time": "N/A",
+            "current_price": "N/A",
+            "next_time": "N/A",
+            "next_price": "N/A"
+        }
+
+    def get_renewable_data(self, settings, replace_decimals_func=None, country="de", description="Anteil EEG"):
+        """
+        Returns the renewable energy data dictionary.
+        For SolarEdge, we don't have renewable data, so return default structure.
+        
+        Args:
+            settings: Plugin settings dictionary
+            replace_decimals_func: Function to replace decimal separator (optional)
+            country: Country code (default: "de" for Germany)
+            description: Description text (default: "Anteil EEG")
+            
+        Returns:
+            Dictionary containing renewable energy data
+        """
+        return {
+            "show": settings.get('dapCountry') == 'DE-LU',
+            "icon": None,
+            "description": description,
+            "percentage": "N/A"
+        }
