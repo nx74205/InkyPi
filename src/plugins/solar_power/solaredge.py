@@ -94,7 +94,7 @@ class Solaredge(SolarProvider):
             return data['siteCurrentPowerFlow']
         return None
     
-    def _fetch_energy_details(self, start_date, end_date, time_unit='DAY'):
+    def _fetch_energy_details(self, start_date, end_date, time_unit='HOUR'):
         """
         Fetch energy data for a date range.
         
@@ -124,9 +124,13 @@ class Solaredge(SolarProvider):
         Returns:
             Storage data dict or None
         """
+        # Calculate next day for end time
+        end_datetime = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+        next_day = end_datetime.strftime('%Y-%m-%d')
+        
         params = {
-            'startTime': start_date + ' 00:00:00',
-            'endTime': end_date + ' 23:59:59'
+            'startTime': start_date + ' 00:15:00',
+            'endTime': next_day + ' 00:00:01'
         }
         return self._make_api_request('storageData', params)
     
@@ -141,6 +145,29 @@ class Solaredge(SolarProvider):
         if data and 'details' in data:
             return data['details']
         return None
+    
+    def _fetch_power_details(self, start_date, end_date, meters='PURCHASED'):
+        """
+        Fetch power details data for a date range.
+        
+        Args:
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+            meters: Meter type (PURCHASED, PRODUCTION, SELFCONSUMPTION, FEEDIN)
+            
+        Returns:
+            Power details data dict or None
+        """
+        # Calculate next day for end time
+        end_datetime = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+        next_day = end_datetime.strftime('%Y-%m-%d')
+        
+        params = {
+            'startTime': start_date + ' 00:15:00',
+            'endTime': next_day + ' 00:00:01',
+            'meters': meters
+        }
+        return self._make_api_request('powerDetails', params)
     
     def get_battery_data(self, replace_decimals_func):
         """
@@ -209,7 +236,6 @@ class Solaredge(SolarProvider):
                     else:
                         # Multiple values, use difference
                         total_charged = max(lifetime_charged_values) - min(lifetime_charged_values)
-                    logger.info(f"Calculated battery charged: {total_charged} Wh")
                 
                 # Calculate discharged today as difference between max and min lifetime values
                 if len(lifetime_discharged_values) >= 1:
@@ -219,7 +245,6 @@ class Solaredge(SolarProvider):
                     else:
                         # Multiple values, use difference
                         total_discharged = max(lifetime_discharged_values) - min(lifetime_discharged_values)
-                    logger.info(f"Calculated battery discharged: {total_discharged} Wh")
                 
                 # Use calculated values if we have data, even if they are 0
                 if len(lifetime_charged_values) >= 1:
@@ -227,7 +252,6 @@ class Solaredge(SolarProvider):
                 if len(lifetime_discharged_values) >= 1:
                     battery_discharged = total_discharged
         
-        logger.info(f"Output: " + f"+{replace_decimals_func(str(self._wh_to_kwh(battery_charged)))} kWh/-{replace_decimals_func(str(self._wh_to_kwh(battery_discharged)))} kWh")
         return {
             "icon": None,  # Will be set by caller
             "level": battery_level,
@@ -250,8 +274,8 @@ class Solaredge(SolarProvider):
         site_details = self._fetch_site_details()
         solar_max_power = self.DEFAULT_SOLAR_MAX_POWER
         if site_details and 'peakPower' in site_details:
-            # peakPower is in W
-            solar_max_power = site_details['peakPower']
+            # peakPower is in kW, convert to W
+            solar_max_power = site_details['peakPower'] * 1000
         
         # Fetch energy for today
         today = self._get_today_str()
@@ -265,14 +289,16 @@ class Solaredge(SolarProvider):
                 solar_production_today = sum(v.get('value', 0) for v in values if v.get('value'))
         
         # Fetch current power from power flow
+        
         power_flow = self._fetch_current_power_flow()
         solar_current_power = self.DEFAULT_SOLAR_CURRENT
         if power_flow and 'PV' in power_flow:
             pv_info = power_flow['PV']
             if 'currentPower' in pv_info:
-                # currentPower is in W
-                solar_current_power = pv_info['currentPower']
+                # currentPower is in kW
+                solar_current_power = pv_info['currentPower'] * 1000
 
+        logger.info("solar_current_power " + str(solar_current_power))
         return {
             "icon": None,  # Will be set by caller
             "max_power": replace_decimals_func(str(self._wh_to_kwh(solar_max_power))) + " kWp",
@@ -290,31 +316,33 @@ class Solaredge(SolarProvider):
         Returns:
             Dictionary containing power plant data with icon and consumption_today
         """
-        # Fetch current power flow for grid consumption
-        power_flow = self._fetch_current_power_flow()
-        
         consumption_today = self.DEFAULT_CONSUMPTION
-        if power_flow and 'GRID' in power_flow:
-            grid_info = power_flow['GRID']
-            if 'currentPower' in grid_info:
-                # currentPower is in W, positive = importing from grid
-                grid_power = grid_info['currentPower']
-                if grid_power > 0:
-                    # This is instantaneous, we'd need to sum over the day
-                    # For now, use energy API
-                    pass
         
-        # Try to get consumption from energy API
+        # Fetch power details from PURCHASED meter
         today = self._get_today_str()
-        energy_data = self._fetch_energy_details(today, today)
+        power_data = self._fetch_power_details(today, today, meters='PURCHASED')
         
-        if energy_data and 'energy' in energy_data:
-            values = energy_data['energy'].get('values', [])
-            if values:
-                # This gives production, not consumption
-                # SolarEdge doesn't directly provide consumption in basic API
-                # Would need consumption meter data
-                pass
+        if power_data and 'powerDetails' in power_data:
+            meters_data = power_data['powerDetails'].get('meters', [])
+            
+            # Find the PURCHASED meter
+            for meter in meters_data:
+                if meter.get('type') == 'Purchased':
+                    values = meter.get('values', [])
+                    if values:
+                        # Values are in W (Watt), need to convert to Wh
+                        # Each value represents a 15-minute interval (0.25 hours)
+                        # Energy (Wh) = Power (W) × Time (h)
+                        total_wh = 0
+                        for v in values:
+                            power = v.get('value', 0)
+                            if power:
+                                # 15 minutes = 0.25 hours
+                                total_wh += power * 0.25
+                        
+                        if total_wh > 0:
+                            consumption_today = total_wh
+                    break
 
         return {
             "icon": None,  # Will be set by caller
@@ -353,7 +381,8 @@ class Solaredge(SolarProvider):
         site_details = self._fetch_site_details()
         max_value = self.DEFAULT_SOLAR_MAX_POWER
         if site_details and 'peakPower' in site_details:
-            max_value = site_details['peakPower']
+            # peakPower is in kW, convert to W
+            max_value = site_details['peakPower'] * 1000
 
         return {
             "max_value": max_value,
