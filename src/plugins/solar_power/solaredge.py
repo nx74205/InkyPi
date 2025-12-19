@@ -1,6 +1,7 @@
 import requests
 from datetime import datetime, timedelta
 from plugins.solar_power.solar_provider import SolarProvider
+from plugins.solar_power.dap_data_provider import DapDataProvider
 import pytz
 import logging
 
@@ -40,6 +41,7 @@ class Solaredge(SolarProvider):
         """
         self.api_key = api_key
         self.site_id = site_id
+        self.dap_provider = DapDataProvider()
         
         if not self.api_key or not self.site_id:
             logger.warning("SolarEdge API key or site_id not provided, using fallback values")
@@ -361,8 +363,8 @@ class Solaredge(SolarProvider):
 
     def get_dap_data(self, settings, currency_symbol, replace_decimals_func, bzn="DE-LU"):
         """
-        Returns the DAP (Day Ahead Price) dictionary.
-        For SolarEdge, we don't have price data, so return default structure.
+        Returns the DAP (Day Ahead Price) dictionary using live data from Energy-Charts API.
+        Delegates to DapDataProvider.
         
         Args:
             settings: Plugin settings dictionary
@@ -373,20 +375,12 @@ class Solaredge(SolarProvider):
         Returns:
             Dictionary containing DAP data with current and next price
         """
-        return {
-            "show": settings.get('showPriceData') == 'true',
-            "icon": None,
-            "currency_symbol": currency_symbol,
-            "current_time": "N/A",
-            "current_price": "N/A",
-            "next_time": "N/A",
-            "next_price": "N/A"
-        }
+        return self.dap_provider.get_dap_data(settings, currency_symbol, replace_decimals_func, bzn)
 
     def get_renewable_data(self, settings, replace_decimals_func=None, country="de", description="Anteil EEG"):
         """
-        Returns the renewable energy data dictionary.
-        For SolarEdge, we don't have renewable data, so return default structure.
+        Returns the renewable energy data dictionary using live data from Energy-Charts API.
+        Delegates to DapDataProvider.
         
         Args:
             settings: Plugin settings dictionary
@@ -397,9 +391,4 @@ class Solaredge(SolarProvider):
         Returns:
             Dictionary containing renewable energy data
         """
-        return {
-            "show": settings.get('dapCountry') == 'DE-LU',
-            "icon": None,
-            "description": description,
-            "percentage": "N/A"
-        }
+        return self.dap_provider.get_renewable_data(settings, replace_decimals_func, country, description)
