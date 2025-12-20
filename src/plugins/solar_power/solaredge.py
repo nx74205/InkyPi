@@ -209,10 +209,6 @@ class Solaredge(SolarProvider):
                     if 'fullPackEnergyAvailable' in first_telemetry:
                         battery_capacity = first_telemetry['fullPackEnergyAvailable']
                 
-                # Sum up all batteries for charge/discharge
-                total_charged = 0
-                total_discharged = 0
-                
                 # Collect all lifeTimeEnergyCharged values to calculate today's charge
                 lifetime_charged_values = []
                 lifetime_discharged_values = []
@@ -228,29 +224,19 @@ class Solaredge(SolarProvider):
                 
                 logger.info(f"Found {len(lifetime_charged_values)} charged values and {len(lifetime_discharged_values)} discharged values")
                 
-                # Calculate charged today as difference between max and min lifetime values
-                if len(lifetime_charged_values) >= 1:
-                    if len(lifetime_charged_values) == 1:
-                        # Only one value, use it as the total (assuming start of day was 0)
-                        total_charged = lifetime_charged_values[0]
-                    else:
-                        # Multiple values, use difference
-                        total_charged = max(lifetime_charged_values) - min(lifetime_charged_values)
+                # Calculate charged today as difference between first and last lifetime values
+                if len(lifetime_charged_values) > 1:
+                    battery_charged = lifetime_charged_values[-1] - lifetime_charged_values[0]
+                else:
+                    battery_charged = 0
                 
-                # Calculate discharged today as difference between max and min lifetime values
-                if len(lifetime_discharged_values) >= 1:
-                    if len(lifetime_discharged_values) == 1:
-                        # Only one value, use it as the total (assuming start of day was 0)
-                        total_discharged = lifetime_discharged_values[0]
-                    else:
-                        # Multiple values, use difference
-                        total_discharged = max(lifetime_discharged_values) - min(lifetime_discharged_values)
-                
-                # Use calculated values if we have data, even if they are 0
-                if len(lifetime_charged_values) >= 1:
-                    battery_charged = total_charged
-                if len(lifetime_discharged_values) >= 1:
-                    battery_discharged = total_discharged
+                # Calculate discharged today as difference between first and last lifetime values
+                if len(lifetime_discharged_values) > 1:
+                    battery_discharged = lifetime_discharged_values[-1] - lifetime_discharged_values[0]
+                else:
+                    battery_discharged = 0
+                                
+                logger.info(f"battery_charged is {battery_charged} battery_discharged is {battery_discharged}")
         
         return {
             "icon": None,  # Will be set by caller
