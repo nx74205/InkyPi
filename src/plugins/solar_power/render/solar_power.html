@@ -24,11 +24,17 @@
     </div>
     <div class="box import-tile">
       <div class="tile-row">
-        <img class="tile-icon" src="{{power_plant.icon}}" alt="Import">
-        <div class="tile-description"></div>
+        <img class="pp-tile-icon" src="{{power_plant.icon}}" alt="Import">
+        <div class="tile-description">{{power_plant.consumption_today}}</div>
       </div>
-      <div class="tile-value1"></div>
-      <div class="tile-value2">{{power_plant.consumption_today}}</div>
+      <div class="pp-tile-row">
+        <img class="pp-row-icon" src="{{power_plant.import_icon}}" alt="Import">
+        <div class="pp-tile-value">{{power_plant.consumption_today}}</div>
+      </div>
+      <div class="pp-tile-row">
+        <img class="pp-row-icon" src="{{power_plant.export_icon}}" alt="Export">
+        <div class="pp-tile-value">{{power_plant.consumption_today}}</div>
+      </div>
     </div>
     <div class="box icon-tile">
       <img class="title-icon" src="{{solarprovider_png}}" alt="Provider">

@@ -119,6 +119,9 @@ class SolarPower(BasePlugin):
         power_plant_data = solar_provider.get_power_plant_data(replace_decimals)
         
         power_plant_data["icon"] = self.get_plugin_dir(f'icons/strommast.png')
+        power_plant_data["import_icon"] = self.get_plugin_dir(f'icons/arrow-right.png')
+        power_plant_data["export_icon"] = self.get_plugin_dir(f'icons/arrow-left.png')
+
         dap_data["icon"] = self.get_plugin_dir(f'icons/euro.png')
         solar_data["icon"] = self.get_plugin_dir(f'icons/solarhaus.png')
         chart_data = solar_provider.get_chart_data()
