@@ -218,7 +218,7 @@ html, body {
 
 .tile-value1 {
   font-size: min(6cqh, 6cqi);
-  color: darkgrey
+  color: darkgray;
   line-height: 50%;
   width: 100%;  
   height: 33%;

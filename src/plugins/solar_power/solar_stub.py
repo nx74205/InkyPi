@@ -15,6 +15,7 @@ class SolarStub(SolarProvider):
     DEFAULT_SOLAR_PRODUCTION = 6.82
     DEFAULT_SOLAR_CURRENT = 2300
     DEFAULT_CONSUMPTION = 4.5
+    DEFAULT_PRODUCTION = 5
     DEFAULT_CHART_MAX = 600
     DEFAULT_CHART_VALUES = 14
     # 24-hour chart data (hourly values in W)
@@ -80,10 +81,15 @@ class SolarStub(SolarProvider):
         """
         
         consumption_today = self.DEFAULT_CONSUMPTION
+        production_today = self.DEFAULT_PRODUCTION
+        grid_balance = consumption_today - production_today
 
         return {
             "icon": None,  # Will be set by caller
-            "consumption_today": replace_decimals_func(str(consumption_today)) + " kWh"
+            "consumption_today": replace_decimals_func(str(consumption_today)) + " kWh",
+            "production_today": replace_decimals_func(str(production_today)) + " kWh",
+            "grid_balance": replace_decimals_func(str(grid_balance)) + " kWh"
+
         }
 
     def get_chart_data(self):

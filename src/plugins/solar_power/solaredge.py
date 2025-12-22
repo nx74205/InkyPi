@@ -29,7 +29,8 @@ class Solaredge(SolarProvider):
     DEFAULT_SOLAR_MAX_POWER = 4400
     DEFAULT_SOLAR_PRODUCTION = 6820.0
     DEFAULT_SOLAR_CURRENT = 2300.0
-    DEFAULT_CONSUMPTION = 4500.0
+    DEFAULT_CONSUMPTION = 0.0
+    DEFAULT_FEEDIN = 0.0
     
     def __init__(self, api_key=None, site_id=None):
         """
@@ -303,15 +304,16 @@ class Solaredge(SolarProvider):
             Dictionary containing power plant data with icon and consumption_today
         """
         consumption_today = self.DEFAULT_CONSUMPTION
+        feedin_today = self.DEFAULT_FEEDIN
         
         # Fetch power details from PURCHASED meter
         today = self._get_today_str()
-        power_data = self._fetch_power_details(today, today, meters='PURCHASED')
+        power_data = self._fetch_power_details(today, today, meters='PURCHASED, FEEDIN')
         
         if power_data and 'powerDetails' in power_data:
             meters_data = power_data['powerDetails'].get('meters', [])
             
-            # Find the PURCHASED meter
+            # Process all meters
             for meter in meters_data:
                 if meter.get('type') == 'Purchased':
                     values = meter.get('values', [])
@@ -328,11 +330,31 @@ class Solaredge(SolarProvider):
                         
                         if total_wh > 0:
                             consumption_today = total_wh
-                    break
+
+                elif meter.get('type') == 'FeedIn':
+                    values = meter.get('values', [])
+                    if values:
+                        # Values are in W (Watt), need to convert to Wh
+                        # Each value represents a 15-minute interval (0.25 hours)
+                        # Energy (Wh) = Power (W) × Time (h)
+                        total_wh = 0
+                        for v in values:
+                            power = v.get('value', 0)
+                            if power:
+                                # 15 minutes = 0.25 hours
+                                total_wh += power * 0.25
+                        
+                        if total_wh > 0:
+                             feedin_today = total_wh
+
+        logger.info("Import from Grid: " + str(consumption_today))
+        logger.info("Export to Grid: " + str(feedin_today))
 
         return {
             "icon": None,  # Will be set by caller
-            "consumption_today": replace_decimals_func(str(self._wh_to_kwh(consumption_today))) + " kWh"
+            "consumption_today": replace_decimals_func(str(self._wh_to_kwh(consumption_today))) + " kWh",
+            "production_today": replace_decimals_func(str(self._wh_to_kwh(feedin_today))) + " kWh",
+            "grid_balance": replace_decimals_func(str(self._wh_to_kwh(consumption_today - feedin_today))) + " kWh"
         }
 
     def get_chart_data(self):

@@ -18,6 +18,7 @@ class SolarBase(SolarProvider):
     SOLAR_AC_OUT_SUMMARY_URL = f'{API_BASE_URL}/ac-out/summary'
     SOLAR_CURRENT_POWER_URL = f'{API_BASE_URL}/ac-out/currentPower'
     GRID_IMPORT_URL = f'{API_BASE_URL}/grid/import'
+    GRID_EXPORT_URL = f'{API_BASE_URL}/grid/export'
     
     # Configuration constants
     SOLAR_MAX_POWER = 4400
@@ -33,6 +34,7 @@ class SolarBase(SolarProvider):
     DEFAULT_SOLAR_PRODUCTION = 6820.0
     DEFAULT_SOLAR_CURRENT = 2300.0
     DEFAULT_GRID_IMPORT = 4500.0
+    DEFAULT_GRID_EXPORT = 3200.0
     
     def __init__(self):
         """Initialize SolarBase with DAP data provider."""
@@ -109,16 +111,21 @@ class SolarBase(SolarProvider):
             replace_decimals_func: Function to replace decimal separator
             
         Returns:
-            Dictionary containing power plant data with icon and consumption_today
+            Dictionary containing power plant data with icon, consumption_today, and production_today
         """
         
-        # Fetch grid import from API
+        # Fetch grid import and export from API
         today = self._get_today_str()
         consumption_today = self._fetch_grid_import(today)
+        production_today = self._fetch_grid_export(today)
+        grid_balance = consumption_today - production_today
 
         return {
             "icon": None,  # Will be set by caller
-            "consumption_today": replace_decimals_func(str(self._wh_to_kwh(consumption_today))) + " kWh"
+            "consumption_today": replace_decimals_func(str(self._wh_to_kwh(consumption_today))) + " kWh",
+            "production_today": replace_decimals_func(str(self._wh_to_kwh(production_today))) + " kWh",
+            "grid_balance": replace_decimals_func(str(self._wh_to_kwh(grid_balance))) + " kWh"
+
         }
 
     def get_chart_data(self):
@@ -299,6 +306,27 @@ class SolarBase(SolarProvider):
         except (requests.exceptions.RequestException, ValueError, KeyError, TypeError) as e:
             logger.error(f"Failed to fetch grid import from API: {e}")
             return self.DEFAULT_GRID_IMPORT
+
+    def _fetch_grid_export(self, date):
+        """
+        Fetch grid export energy for a specific date from API.
+        
+        Args:
+            date: Date string in format 'YYYY-MM-DD'
+            
+        Returns:
+            Total exported energy in Watt-hours (as float)
+        """
+        try:
+            response = requests.get(self.GRID_EXPORT_URL, params={'date': date}, timeout=self.API_TIMEOUT)
+            response.raise_for_status()
+            data = response.json()
+            exported = float(data['totalExported'])
+            logger.info(f"Successfully fetched grid export: {exported} Wh for {date}")
+            return exported
+        except (requests.exceptions.RequestException, ValueError, KeyError, TypeError) as e:
+            logger.error(f"Failed to fetch grid export from API: {e}")
+            return self.DEFAULT_GRID_EXPORT
 
     def _fetch_solar_ac_out_chart_data(self, date):
         """
