@@ -114,6 +114,31 @@ class Solaredge(SolarProvider):
         }
         return self._make_api_request('energy', params)
     
+    def _fetch_energy_details_by_meter(self, start_date, end_date, time_unit='DAY', meters='Production'):
+        """
+        Fetch energy details data by meter type for a date range.
+        
+        Args:
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+            time_unit: Time unit (DAY, QUARTER_OF_AN_HOUR, HOUR)
+            meters: Meter types (Production, Consumption, SelfConsumption, FeedIn, Purchased)
+            
+        Returns:
+            Energy details data dict or None
+        """
+        # Calculate next day for end time
+        end_datetime = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+        next_day = end_datetime.strftime('%Y-%m-%d')
+        
+        params = {
+            'startTime': start_date + ' 00:00:00',
+            'endTime': next_day + ' 00:00:00',
+            'timeUnit': time_unit,
+            'meters': meters
+        }
+        return self._make_api_request('energyDetails', params)
+    
     def _fetch_storage_data(self, start_date, end_date):
         """
         Fetch battery storage data.
@@ -306,27 +331,20 @@ class Solaredge(SolarProvider):
         consumption_today = self.DEFAULT_CONSUMPTION
         feedin_today = self.DEFAULT_FEEDIN
         
-        # Fetch power details from PURCHASED meter
+        # Fetch energy details from PURCHASED and FEEDIN meters using DAY time unit
         today = self._get_today_str()
-        power_data = self._fetch_power_details(today, today, meters='PURCHASED, FEEDIN')
+        energy_data = self._fetch_energy_details_by_meter(today, today, time_unit='DAY', meters='Purchased,FeedIn')
         
-        if power_data and 'powerDetails' in power_data:
-            meters_data = power_data['powerDetails'].get('meters', [])
+        if energy_data and 'energyDetails' in energy_data:
+            meters_data = energy_data['energyDetails'].get('meters', [])
             
             # Process all meters
             for meter in meters_data:
                 if meter.get('type') == 'Purchased':
                     values = meter.get('values', [])
                     if values:
-                        # Values are in W (Watt), need to convert to Wh
-                        # Each value represents a 15-minute interval (0.25 hours)
-                        # Energy (Wh) = Power (W) × Time (h)
-                        total_wh = 0
-                        for v in values:
-                            power = v.get('value', 0)
-                            if power:
-                                # 15 minutes = 0.25 hours
-                                total_wh += power * 0.25
+                        # Values are already in Wh (Wattstunden)
+                        total_wh = sum(v.get('value', 0) for v in values if v.get('value'))
                         
                         if total_wh > 0:
                             consumption_today = total_wh
@@ -334,18 +352,11 @@ class Solaredge(SolarProvider):
                 elif meter.get('type') == 'FeedIn':
                     values = meter.get('values', [])
                     if values:
-                        # Values are in W (Watt), need to convert to Wh
-                        # Each value represents a 15-minute interval (0.25 hours)
-                        # Energy (Wh) = Power (W) × Time (h)
-                        total_wh = 0
-                        for v in values:
-                            power = v.get('value', 0)
-                            if power:
-                                # 15 minutes = 0.25 hours
-                                total_wh += power * 0.25
+                        # Values are already in Wh (Wattstunden)
+                        total_wh = sum(v.get('value', 0) for v in values if v.get('value'))
                         
                         if total_wh > 0:
-                             feedin_today = total_wh
+                            feedin_today = total_wh
 
         logger.info("Import from Grid: " + str(consumption_today))
         logger.info("Export to Grid: " + str(feedin_today))
