@@ -138,7 +138,7 @@ class SolarBase(SolarProvider):
         
         # Fetch chart data from API
         today = self._get_today_str()
-        chart_data = self._fetch_solar_ac_out_chart_data(today)
+        chart_data = self._fetch_solar_pv_chart_data(today)
 
         return {
             "max_value": self.SOLAR_MAX_POWER,
@@ -245,25 +245,36 @@ class SolarBase(SolarProvider):
 
     def _fetch_solar_production(self, date):
         """
-        Fetches the total solar production (AC output) for a specific date from the local API.
+        Fetches the total solar PV production for a specific date from the local API.
+        Calculates actual PV power as: ac_out - battery_out + battery_in
+        Returns 0 for negative values and sums all hourly values.
         
         Args:
             date: Date string in format 'YYYY-MM-DD'
             
         Returns:
-            Float value of total solar production in Wh or fallback value if request fails
+            Float value of total solar PV production in Wh or fallback value if request fails
         """
         try:
             response = requests.get(self.SOLAR_AC_OUT_SUMMARY_URL, params={'date': date}, timeout=self.API_TIMEOUT)
             response.raise_for_status()
             data = response.json()
             
-            # Sum all ac_out values
-            total_ac_out = sum(item.get('ac_out', 0) for item in data if isinstance(item, dict))
-            logger.info(f"Successfully fetched solar production: {total_ac_out} Wh for {date}")
-            return total_ac_out
+            # Calculate PV power: ac_out - battery_out + battery_in for each hour, then sum
+            total_pv = 0
+            for item in data:
+                if isinstance(item, dict):
+                    ac_out = item.get('ac_out', 0)
+                    battery_out = item.get('battery_out', 0)
+                    battery_in = item.get('battery_in', 0)
+                    pv_power = ac_out - battery_out + battery_in
+                    # Add to total, using 0 if negative
+                    total_pv += max(0, pv_power)
+            
+            logger.info(f"Successfully fetched solar PV production: {total_pv} Wh for {date}")
+            return total_pv
         except (requests.exceptions.RequestException, ValueError, KeyError, TypeError) as e:
-            logger.error(f"Failed to fetch solar production from API: {e}")
+            logger.error(f"Failed to fetch solar PV production from API: {e}")
             return self.DEFAULT_SOLAR_PRODUCTION
 
     def _fetch_solar_current_power(self):
@@ -328,26 +339,37 @@ class SolarBase(SolarProvider):
             logger.error(f"Failed to fetch grid export from API: {e}")
             return self.DEFAULT_GRID_EXPORT
 
-    def _fetch_solar_ac_out_chart_data(self, date):
+    def _fetch_solar_pv_chart_data(self, date):
         """
-        Fetch solar AC output hourly data for chart display.
+        Fetch solar PV power hourly data for chart display.
+        Calculates actual PV power as: ac_out - battery_out + battery_in
+        Returns 0 for negative values.
         
         Args:
             date: Date string in format 'YYYY-MM-DD'
             
         Returns:
-            List of ac_out values (in Wh) for 24 hours, or fallback data if request fails
+            List of PV power values (in Wh) for 24 hours, or fallback data if request fails
         """
         try:
             response = requests.get(self.SOLAR_AC_OUT_SUMMARY_URL, params={'date': date}, timeout=self.API_TIMEOUT)
             response.raise_for_status()
             data = response.json()
             
-            # Extract ac_out values from the hourly data
-            ac_out_values = [item.get('ac_out', 0) for item in data if isinstance(item, dict)]
-            logger.info(f"Successfully fetched chart data: {len(ac_out_values)} data points for {date}")
-            return ac_out_values
+            # Calculate PV power: ac_out - battery_out + battery_in for each hour
+            pv_values = []
+            for item in data:
+                if isinstance(item, dict):
+                    ac_out = item.get('ac_out', 0)
+                    battery_out = item.get('battery_out', 0)
+                    battery_in = item.get('battery_in', 0)
+                    pv_power = ac_out - battery_out + battery_in
+                    # Return 0 if negative
+                    pv_values.append(max(0, pv_power))
+            
+            logger.info(f"Successfully fetched PV chart data: {len(pv_values)} data points for {date}")
+            return pv_values
         except (requests.exceptions.RequestException, ValueError, KeyError, TypeError) as e:
-            logger.error(f"Failed to fetch chart data from API: {e}")
+            logger.error(f"Failed to fetch PV chart data from API: {e}")
             # Fallback: return 24 hours of zero values
             return [0] * self.DEFAULT_CHART_HOURS

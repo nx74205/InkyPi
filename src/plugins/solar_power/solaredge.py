@@ -160,6 +160,78 @@ class Solaredge(SolarProvider):
         }
         return self._make_api_request('storageData', params)
     
+    def _fetch_hourly_storage_data(self, date):
+        """
+        Fetch hourly battery storage data for a specific date.
+        
+        Args:
+            date: Date string in format 'YYYY-MM-DD'
+            
+        Returns:
+            Dictionary with keys 'charged' and 'discharged', each containing a list of 24 hourly values in Wh
+        """
+        storage_data = self._fetch_storage_data(date, date)
+        
+        # Initialize arrays for 24 hours
+        charged_hourly = [0] * 24
+        discharged_hourly = [0] * 24
+        
+        if storage_data and 'storageData' in storage_data:
+            batteries = storage_data['storageData'].get('batteries', [])
+            
+            for battery in batteries:
+                telemetries = battery.get('telemetries', [])
+                
+                # Group telemetries by hour
+                hourly_telemetries = {}
+                for i in range(24):
+                    hourly_telemetries[i] = []
+                
+                for telemetry in telemetries:
+                    time_stamp = telemetry.get('timeStamp')
+                    if time_stamp:
+                        try:
+                            # Parse timestamp (format: "2025-12-28 00:02:55")
+                            dt = datetime.strptime(time_stamp, '%Y-%m-%d %H:%M:%S')
+                            hour = dt.hour
+                            
+                            # Store telemetry with lifetime values
+                            lifetime_charged = telemetry.get('lifeTimeEnergyCharged')
+                            lifetime_discharged = telemetry.get('lifeTimeEnergyDischarged')
+                            
+                            if lifetime_charged is not None or lifetime_discharged is not None:
+                                hourly_telemetries[hour].append({
+                                    'charged': lifetime_charged,
+                                    'discharged': lifetime_discharged
+                                })
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"Failed to parse timestamp {time_stamp}: {e}")
+                            continue
+                
+                # Calculate hourly differences for each hour
+                for hour in range(24):
+                    telemetries_in_hour = hourly_telemetries[hour]
+                    if len(telemetries_in_hour) >= 2:
+                        # Get first and last telemetry in this hour
+                        first = telemetries_in_hour[0]
+                        last = telemetries_in_hour[-1]
+                        
+                        # Calculate charged difference
+                        if first['charged'] is not None and last['charged'] is not None:
+                            charged_diff = last['charged'] - first['charged']
+                            charged_hourly[hour] += max(0, charged_diff)
+                        
+                        # Calculate discharged difference
+                        if first['discharged'] is not None and last['discharged'] is not None:
+                            discharged_diff = last['discharged'] - first['discharged']
+                            discharged_hourly[hour] += max(0, discharged_diff)
+        
+        logger.info(f"Fetched hourly storage data for {date}: {len([c for c in charged_hourly if c > 0])} hours with charging")
+        return {
+            'charged': charged_hourly,
+            'discharged': discharged_hourly
+        }
+    
     def _fetch_site_details(self):
         """
         Fetch site details including peak power.
@@ -289,16 +361,20 @@ class Solaredge(SolarProvider):
             # peakPower is in kW, convert to W
             solar_max_power = site_details['peakPower'] * 1000
         
-        # Fetch energy for today
+        # Fetch energy details for today
         today = self._get_today_str()
-        energy_data = self._fetch_energy_details(today, today)
+        energy_data = self._fetch_energy_details_by_meter(today, today, time_unit='HOUR', meters='Production')
         
         solar_production_today = self.DEFAULT_SOLAR_PRODUCTION
-        if energy_data and 'energy' in energy_data:
-            values = energy_data['energy'].get('values', [])
-            if values:
-                # Sum all energy values for today (in Wh)
-                solar_production_today = sum(v.get('value', 0) for v in values if v.get('value'))
+        if energy_data and 'energyDetails' in energy_data:
+            meters_data = energy_data['energyDetails'].get('meters', [])
+            for meter in meters_data:
+                if meter.get('type') == 'Production':
+                    values = meter.get('values', [])
+                    if values:
+                        # Sum all energy values for today (in Wh)
+                        solar_production_today = sum(v.get('value', 0) for v in values if v.get('value'))
+                        break
         
         # Fetch current power from power flow
         
@@ -377,22 +453,29 @@ class Solaredge(SolarProvider):
         """
         today = self._get_today_str()
         
-        # Fetch energy data with QUARTER_OF_AN_HOUR resolution for more detail
-        energy_data = self._fetch_energy_details(today, today, time_unit='QUARTER_OF_AN_HOUR')
+        # Fetch energy data with HOUR resolution
+        energy_data = self._fetch_energy_details(today, today, time_unit='HOUR')
+        
+        # Fetch battery storage data
+        storage_data = self._fetch_hourly_storage_data(today)
+        charged_hourly = storage_data['charged']
+        discharged_hourly = storage_data['discharged']
         
         chart_data = [0] * self.DEFAULT_CHART_HOURS
         
         if energy_data and 'energy' in energy_data:
             values = energy_data['energy'].get('values', [])
             
-            # Group by hour (4 quarter-hour values per hour)
+            # Calculate hourly values: value + charged - discharged
             hourly_data = [0] * 24
             for i, value_dict in enumerate(values):
-                value = value_dict.get('value', 0)
-                if value:
-                    hour = i // 4  # 4 quarters per hour
-                    if hour < 24:
-                        hourly_data[hour] += value
+                if i < 24:
+                    value = value_dict.get('value', 0) or 0
+                    charged = charged_hourly[i] if i < len(charged_hourly) else 0
+                    discharged = discharged_hourly[i] if i < len(discharged_hourly) else 0
+                    
+                    # Calculate: value + charged - discharged
+                    hourly_data[i] = value + charged - discharged
             
             chart_data = hourly_data
         
