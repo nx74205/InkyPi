@@ -43,7 +43,9 @@ class Solaredge(SolarProvider):
         self.api_key = api_key
         self.site_id = site_id
         self.dap_provider = DapDataProvider()
-        
+        self.api_call_counter = 0
+        self.api_cache = {}
+
         if not self.api_key or not self.site_id:
             logger.warning("SolarEdge API key or site_id not provided, using fallback values")
     
@@ -332,6 +334,14 @@ class Solaredge(SolarProvider):
         """
         if not self.api_key or not self.site_id:
             return None
+        
+        # Create cache key from endpoint and params
+        cache_key = f"{endpoint}:{str(sorted(params.items()) if params else '')}"
+        
+        # Check if result is already cached
+        if cache_key in self.api_cache:
+            logger.info(f"Using cached result for endpoint: {endpoint}")
+            return self.api_cache[cache_key]
             
         url = f"{self.SOLAREDGE_BASE_URL}/site/{self.site_id}/{endpoint}"
         
@@ -342,7 +352,12 @@ class Solaredge(SolarProvider):
         try:
             response = requests.get(url, params=request_params, timeout=self.API_TIMEOUT)
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+            
+            # Cache the result
+            self.api_cache[cache_key] = result
+            
+            return result
         except requests.exceptions.RequestException as e:
             logger.error(f"SolarEdge API request failed for {endpoint}: {e}")
             return None
