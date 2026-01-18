@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class SolarBase(SolarProvider):
     # Base URL configuration
-    API_BASE_URL = 'http://192.168.0.100:8485/api/solar'
+    API_BASE_URL = 'http://192.168.0.200:8485/api/solar'
     
     # API endpoints
     BATTERY_SOC_URL = f'{API_BASE_URL}/battery-soc/current'
